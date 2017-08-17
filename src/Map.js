@@ -1,4 +1,5 @@
-const NUM_ROOMS = 10;
+import MapNode from './MapNode';
+
 const NUM_LINES = 4;
 const VERTICES_PER_LINE = 2;
 const VERTICES_PER_ROOM = 4;
@@ -6,43 +7,48 @@ const VERTEX_SIZE = 2;
 
 export default class Map {
   constructor(gl) {
-    const vertices = new Float32Array(NUM_ROOMS * VERTICES_PER_ROOM *
+    this.root = new MapNode(0, 0, 640, 480);
+    this.root.split();
+    this.root.createRooms();
+
+    this.leafCount = this.root.leafCount();
+
+    const vertices = new Float32Array(this.leafCount * VERTICES_PER_ROOM *
                                       VERTEX_SIZE);
-    const indices = new Uint16Array(NUM_ROOMS * NUM_LINES * VERTICES_PER_LINE);
+    const indices = new Uint16Array(this.leafCount * NUM_LINES *
+                                    VERTICES_PER_LINE);
 
-    let verticesIndex = 0;
-    let indicesIndex = 0;
+    let vbIndex = 0;
+    let ibIndex = 0;
+    let leafIndex = 0;
 
-    for (let i = 0; i < NUM_ROOMS; i++) {
-      const x = Math.random() * 640.0;
-      const y = Math.random() * 480.0;
-      const w = 50.0 + Math.random() * 300.0;
-      const h = 50.0 + Math.random() * 200.0;
+    this.root.visitLeaves(leaf => {
+      vertices[vbIndex++] = leaf.roomX;
+      vertices[vbIndex++] = leaf.roomY;
 
-      vertices[verticesIndex++] = x;
-      vertices[verticesIndex++] = y;
+      vertices[vbIndex++] = leaf.roomX + leaf.roomW;
+      vertices[vbIndex++] = leaf.roomY;
 
-      vertices[verticesIndex++] = x + w;
-      vertices[verticesIndex++] = y;
+      vertices[vbIndex++] = leaf.roomX;
+      vertices[vbIndex++] = leaf.roomY + leaf.roomH;
 
-      vertices[verticesIndex++] = x;
-      vertices[verticesIndex++] = y + h;
+      vertices[vbIndex++] = leaf.roomX + leaf.roomW;
+      vertices[vbIndex++] = leaf.roomY + leaf.roomH;
 
-      vertices[verticesIndex++] = x + w;
-      vertices[verticesIndex++] = y + h;
+      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM;
+      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 1;
 
-      indices[indicesIndex++] = i * VERTICES_PER_ROOM;
-      indices[indicesIndex++] = i * VERTICES_PER_ROOM + 1;
+      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM;
+      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 2;
 
-      indices[indicesIndex++] = i * VERTICES_PER_ROOM;
-      indices[indicesIndex++] = i * VERTICES_PER_ROOM + 2;
+      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 1;
+      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 3;
 
-      indices[indicesIndex++] = i * VERTICES_PER_ROOM + 1;
-      indices[indicesIndex++] = i * VERTICES_PER_ROOM + 3;
+      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 2;
+      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 3;
 
-      indices[indicesIndex++] = i * VERTICES_PER_ROOM + 2;
-      indices[indicesIndex++] = i * VERTICES_PER_ROOM + 3;
-    }
+      leafIndex++;
+    });
 
     this.vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
@@ -55,7 +61,7 @@ export default class Map {
 
   draw(gl, basicShader) {
     gl.uniform4f(basicShader.color, 0.0, 0.0, 1.0, 1.0);
-    gl.drawElements(gl.LINES, NUM_ROOMS * NUM_LINES * VERTICES_PER_LINE,
+    gl.drawElements(gl.LINES, this.leafCount * NUM_LINES * VERTICES_PER_LINE,
                     gl.UNSIGNED_SHORT, 0);
   }
 }
