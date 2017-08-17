@@ -1,0 +1,26 @@
+{
+  "name": "neon-dungeon",
+  "version": "1.0.0",
+  "description": "A tiny procedural Roguelike.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup -c",
+    "dev": "rollup -c -w"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/attilahorvath/neon-dungeon.git"
+  },
+  "author": "Attila Horváth",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/attilahorvath/neon-dungeon/issues"
+  },
+  "homepage": "https://github.com/attilahorvath/neon-dungeon#readme",
+  "devDependencies": {
+    "rollup": "^0.47.5",
+    "rollup-plugin-glsl": "^1.0.0",
+    "rollup-watch": "^4.3.1"
+  }
+}
