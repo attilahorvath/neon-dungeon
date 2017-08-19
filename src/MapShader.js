@@ -1,5 +1,5 @@
-import vertexShaderSource from '../shaders/map.vert.glsl';
-import fragmentShaderSource from '../shaders/map.frag.glsl';
+import vertexShaderSource from '../shaders/map.vert';
+import fragmentShaderSource from '../shaders/map.frag';
 
 export default class MapShader {
   constructor(gl) {

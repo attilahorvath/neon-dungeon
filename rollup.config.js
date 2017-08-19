@@ -7,10 +7,10 @@ export default {
   format: 'iife',
   plugins: [
     eslint({
-      exclude: 'shaders/**/*.glsl'
+      exclude: 'shaders/**/*'
     }),
     glsl({
-      include: 'shaders/**/*.glsl'
+      include: 'shaders/**/*'
     })
   ]
 };
