@@ -27,8 +27,25 @@ export default class Map {
     this.root.visitLeaves(leaf => {
       for (let y = leaf.roomY; y < leaf.roomY + leaf.roomH; y++) {
         for (let x = leaf.roomX; x < leaf.roomX + leaf.roomW; x++) {
-          this.grid[y * MAP_WIDTH + x] = 255;
+          this.grid[y * MAP_WIDTH + x] = 0xFF;
         }
+      }
+    });
+
+    this.root.visitLeafPairs((leafA, leafB) => {
+      let aCenterX = Math.floor(leafA.roomX + leafA.roomW / 2);
+      let aCenterY = Math.floor(leafA.roomY + leafA.roomH / 2);
+      let bCenterX = Math.floor(leafB.roomX + leafB.roomW / 2);
+      let bCenterY = Math.floor(leafB.roomY + leafB.roomH / 2);
+
+      for (let y = aCenterY; y != bCenterY;
+        y += Math.sign(bCenterY - aCenterY)) {
+          this.grid[y * MAP_WIDTH + aCenterX] = 0xFF;
+      }
+
+      for (let x = aCenterX; x != bCenterX;
+        x += Math.sign(bCenterX - aCenterX)) {
+        this.grid[bCenterY * MAP_WIDTH + x] = 0xFF;
       }
     });
 

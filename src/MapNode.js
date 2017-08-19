@@ -75,4 +75,17 @@ export default class MapNode {
     this.childA.visitLeaves(f);
     this.childB.visitLeaves(f);
   }
+
+  visitLeafPairs(f) {
+    if (this.isLeaf()) {
+      return this;
+    }
+
+    let leafA = this.childA.visitLeafPairs(f);
+    let leafB = this.childB.visitLeafPairs(f);
+
+    f(leafA, leafB);
+
+    return Math.random() < 0.5 ? leafA : leafB;
+  }
 }
