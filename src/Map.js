@@ -9,7 +9,6 @@ export default class Map {
   constructor(gl) {
     this.root = new MapNode(0, 0, 640, 480);
     this.root.split();
-    this.root.createRooms();
 
     this.leafCount = this.root.leafCount();
 

@@ -10,9 +10,13 @@ export default class MapNode {
     this.h = h;
   }
 
+  isLeaf() {
+    return !this.childA && !this.childB;
+  }
+
   split() {
-    if (this.childA || this.childB ||
-        this.w <= MIN_SIZE * 2 || this.h <= MIN_SIZE * 2) {
+    if (!this.isLeaf() || this.w < MIN_SIZE * 2 || this.h < MIN_SIZE * 2) {
+      this.createRoom();
       return false;
     }
 
@@ -44,21 +48,19 @@ export default class MapNode {
     this.childB = new MapNode(this.x + size, this.y, this.w - size, this.h);
   }
 
-  createRooms() {
-    this.visitLeaves(leaf => {
-      leaf.roomW = MIN_ROOM_SIZE + Math.random() * (leaf.w - 2 * MIN_ROOM_OFFSET
-                   - MIN_ROOM_SIZE);
-      leaf.roomH = MIN_ROOM_SIZE + Math.random() * (leaf.h - 2 * MIN_ROOM_OFFSET
-                   - MIN_ROOM_SIZE);
-      leaf.roomX = leaf.x + MIN_ROOM_OFFSET + Math.random() * (leaf.w -
-                   leaf.roomW - 2 * MIN_ROOM_OFFSET);
-      leaf.roomY = leaf.y + MIN_ROOM_OFFSET + Math.random() * (leaf.h -
-                   leaf.roomH - 2 * MIN_ROOM_OFFSET);
-    });
+  createRoom() {
+    this.roomW = MIN_ROOM_SIZE + Math.random() * (this.w - 2 * MIN_ROOM_OFFSET
+      - MIN_ROOM_SIZE);
+    this.roomH = MIN_ROOM_SIZE + Math.random() * (this.h - 2 * MIN_ROOM_OFFSET
+      - MIN_ROOM_SIZE);
+    this.roomX = this.x + MIN_ROOM_OFFSET + Math.random() * (this.w -
+      this.roomW - 2 * MIN_ROOM_OFFSET);
+    this.roomY = this.y + MIN_ROOM_OFFSET + Math.random() * (this.h -
+      this.roomH - 2 * MIN_ROOM_OFFSET);
   }
 
   leafCount() {
-    if (!this.childA || !this.childB) {
+    if (this.isLeaf()) {
       return 1;
     }
 
@@ -66,7 +68,7 @@ export default class MapNode {
   }
 
   visitLeaves(f) {
-    if (!this.childA || !this.childB) {
+    if (this.isLeaf()) {
       return f(this);
     }
 
