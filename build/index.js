@@ -1,41 +1,9 @@
 (function () {
 'use strict';
 
-var vertexShaderSource = "uniform mediump mat4 projection;attribute vec2 position;void main(){gl_Position=projection*vec4(position,0.0,1.0);}";
-
-var fragmentShaderSource = "uniform mediump vec4 color;void main(){gl_FragColor=color;}";
-
-class BasicShader {
-  constructor(gl) {
-    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vertexShader, vertexShaderSource);
-    gl.compileShader(vertexShader);
-
-    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(fragmentShader, fragmentShaderSource);
-    gl.compileShader(fragmentShader);
-
-    this.program = gl.createProgram();
-    gl.attachShader(this.program, vertexShader);
-    gl.attachShader(this.program, fragmentShader);
-    gl.linkProgram(this.program);
-
-    this.position = gl.getAttribLocation(this.program, 'position');
-    gl.enableVertexAttribArray(this.position);
-
-    this.projection = gl.getUniformLocation(this.program, 'projection');
-    this.color = gl.getUniformLocation(this.program, 'color');
-  }
-
-  use(gl) {
-    gl.useProgram(this.program);
-    gl.vertexAttribPointer(this.positon, 2, gl.FLOAT, false, 0, 0);
-  }
-}
-
-const MIN_SIZE = 50;
-const MIN_ROOM_OFFSET = 5;
-const MIN_ROOM_SIZE = 30;
+const MIN_SIZE = 5;
+const MIN_ROOM_OFFSET = 1;
+const MIN_ROOM_SIZE = 3;
 
 class MapNode {
   constructor(x, y, w, h) {
@@ -70,28 +38,28 @@ class MapNode {
   }
 
   splitHorizontally() {
-    let size = MIN_SIZE + Math.random() * (this.h - MIN_SIZE * 2);
+    let size = Math.round(MIN_SIZE + Math.random() * (this.h - MIN_SIZE * 2));
 
     this.childA = new MapNode(this.x, this.y, this.w, size);
     this.childB = new MapNode(this.x, this.y + size, this.w, this.h - size);
   }
 
   splitVertically() {
-    let size = MIN_SIZE + Math.random() * (this.w - MIN_SIZE * 2);
+    let size = Math.round(MIN_SIZE + Math.random() * (this.w - MIN_SIZE * 2));
 
     this.childA = new MapNode(this.x, this.y, size, this.h);
     this.childB = new MapNode(this.x + size, this.y, this.w - size, this.h);
   }
 
   createRoom() {
-    this.roomW = MIN_ROOM_SIZE + Math.random() * (this.w - 2 * MIN_ROOM_OFFSET
-      - MIN_ROOM_SIZE);
-    this.roomH = MIN_ROOM_SIZE + Math.random() * (this.h - 2 * MIN_ROOM_OFFSET
-      - MIN_ROOM_SIZE);
-    this.roomX = this.x + MIN_ROOM_OFFSET + Math.random() * (this.w -
-      this.roomW - 2 * MIN_ROOM_OFFSET);
-    this.roomY = this.y + MIN_ROOM_OFFSET + Math.random() * (this.h -
-      this.roomH - 2 * MIN_ROOM_OFFSET);
+    this.roomW = Math.round(MIN_ROOM_SIZE + Math.random() *
+      (this.w - 2 * MIN_ROOM_OFFSET - MIN_ROOM_SIZE));
+    this.roomH = Math.round(MIN_ROOM_SIZE + Math.random() *
+      (this.h - 2 * MIN_ROOM_OFFSET - MIN_ROOM_SIZE));
+    this.roomX = Math.round(this.x + MIN_ROOM_OFFSET + Math.random() *
+      (this.w - this.roomW - 2 * MIN_ROOM_OFFSET));
+    this.roomY = Math.round(this.y + MIN_ROOM_OFFSET + Math.random() *
+      (this.h - this.roomH - 2 * MIN_ROOM_OFFSET));
   }
 
   leafCount() {
@@ -112,54 +80,83 @@ class MapNode {
   }
 }
 
-const NUM_LINES = 4;
-const VERTICES_PER_LINE = 2;
-const VERTICES_PER_ROOM = 4;
-const VERTEX_SIZE = 2;
+var vertexShaderSource = "uniform mediump mat4 projection;attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=projection*vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+
+var fragmentShaderSource = "precision highp float;const float tolerance=0.2;uniform sampler2D sampler;uniform mediump vec4 color;uniform mediump vec2 texSize;varying highp vec2 texCoord;void main(){float left=step(tolerance,texture2D(sampler,vec2(texCoord.x-1.0/texSize.x,texCoord.y)).a);float right=step(tolerance,texture2D(sampler,vec2(texCoord.x+1.0/texSize.x,texCoord.y)).a);float top=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y-1.0/texSize.y)).a);float bottom=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y+1.0/texSize.y)).a);float current=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y)).a);float p=((1.0-left)+(1.0-right)+(1.0-top)+(1.0-bottom))*current;gl_FragColor=color*p;}";
+
+class MapShader {
+  constructor(gl) {
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertexShader, vertexShaderSource);
+    gl.compileShader(vertexShader);
+
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragmentShader, fragmentShaderSource);
+    gl.compileShader(fragmentShader);
+
+    this.program = gl.createProgram();
+    gl.attachShader(this.program, vertexShader);
+    gl.attachShader(this.program, fragmentShader);
+    gl.linkProgram(this.program);
+
+    this.vertexPosition = gl.getAttribLocation(this.program, 'vertexPosition');
+    gl.enableVertexAttribArray(this.vertexPosition);
+
+    this.vertexTexCoord = gl.getAttribLocation(this.program, 'vertexTexCoord');
+    gl.enableVertexAttribArray(this.vertexTexCoord);
+
+    this.projection = gl.getUniformLocation(this.program, 'projection');
+    this.sampler = gl.getUniformLocation(this.program, 'sampler');
+    this.color = gl.getUniformLocation(this.program, 'color');
+    this.texSize = gl.getUniformLocation(this.program, 'texSize');
+  }
+
+  use(gl) {
+    gl.useProgram(this.program);
+    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 16, 0);
+    gl.vertexAttribPointer(this.vertexTexCoord, 2, gl.FLOAT, false, 16, 8);
+  }
+}
+
+const TILE_SIZE = 10;
+const MAP_WIDTH = 640 / TILE_SIZE;
+const MAP_HEIGHT = 480 / TILE_SIZE;
 
 class Map {
   constructor(gl) {
-    this.root = new MapNode(0, 0, 640, 480);
+    this.root = new MapNode(0, 0, MAP_WIDTH, MAP_HEIGHT);
     this.root.split();
 
-    this.leafCount = this.root.leafCount();
+    this.grid = new Uint8Array(MAP_WIDTH * MAP_HEIGHT);
 
-    const vertices = new Float32Array(this.leafCount * VERTICES_PER_ROOM *
-                                      VERTEX_SIZE);
-    const indices = new Uint16Array(this.leafCount * NUM_LINES *
-                                    VERTICES_PER_LINE);
+    const vertices = new Float32Array([
+      0, 0, 0, 0,
+      639, 0, 1, 0,
+      0, 479, 0, 1,
+      639, 479, 1, 1
+    ]);
 
-    let vbIndex = 0;
-    let ibIndex = 0;
-    let leafIndex = 0;
+    const indices = new Uint16Array([
+      0, 2, 1,
+      1, 2, 3
+    ]);
 
     this.root.visitLeaves(leaf => {
-      vertices[vbIndex++] = leaf.roomX;
-      vertices[vbIndex++] = leaf.roomY;
-
-      vertices[vbIndex++] = leaf.roomX + leaf.roomW;
-      vertices[vbIndex++] = leaf.roomY;
-
-      vertices[vbIndex++] = leaf.roomX;
-      vertices[vbIndex++] = leaf.roomY + leaf.roomH;
-
-      vertices[vbIndex++] = leaf.roomX + leaf.roomW;
-      vertices[vbIndex++] = leaf.roomY + leaf.roomH;
-
-      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM;
-      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 1;
-
-      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM;
-      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 2;
-
-      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 1;
-      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 3;
-
-      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 2;
-      indices[ibIndex++] = leafIndex * VERTICES_PER_ROOM + 3;
-
-      leafIndex++;
+      for (let y = leaf.roomY; y < leaf.roomY + leaf.roomH; y++) {
+        for (let x = leaf.roomX; x < leaf.roomX + leaf.roomW; x++) {
+          this.grid[y * MAP_WIDTH + x] = 255;
+        }
+      }
     });
+
+    this.texture = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, MAP_WIDTH, MAP_HEIGHT, 0,
+      gl.ALPHA, gl.UNSIGNED_BYTE, this.grid);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
     this.vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
@@ -168,11 +165,19 @@ class Map {
     this.indexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+    this.shader = new MapShader(gl);
   }
 
-  draw(gl, basicShader) {
-    gl.uniform4f(basicShader.color, 0.0, 0.0, 1.0, 1.0);
-    gl.drawElements(gl.LINES, this.leafCount * NUM_LINES * VERTICES_PER_LINE,
+  draw(gl, projection) {
+    this.shader.use(gl);
+
+    gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniform4f(this.shader.color, 0.0, 0.0, 1.0, 1.0);
+    gl.uniform1i(this.shader.sampler, 0);
+    gl.uniform2f(this.shader.texSize, 640.0, 480.0);
+
+    gl.drawElements(gl.TRIANGLES, 6,
                     gl.UNSIGNED_SHORT, 0);
   }
 }
@@ -191,19 +196,14 @@ class Game {
       -1.0, 1.0, 0.0, 1.0
     ]);
 
-    this.basicShader = new BasicShader(this.gl);
     this.map = new Map(this.gl);
-
-    this.basicShader.use(this.gl);
-
-    this.gl.uniformMatrix4fv(this.basicShader.projection, false, this.projection);
   }
 
   update(timestamp) {}
 
   draw() {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.map.draw(this.gl, this.basicShader);
+    this.map.draw(this.gl, this.projection);
   }
 }
 

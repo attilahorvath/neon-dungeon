@@ -1,6 +1,6 @@
-const MIN_SIZE = 50;
-const MIN_ROOM_OFFSET = 5;
-const MIN_ROOM_SIZE = 30;
+const MIN_SIZE = 5;
+const MIN_ROOM_OFFSET = 1;
+const MIN_ROOM_SIZE = 3;
 
 export default class MapNode {
   constructor(x, y, w, h) {
@@ -35,28 +35,28 @@ export default class MapNode {
   }
 
   splitHorizontally() {
-    let size = MIN_SIZE + Math.random() * (this.h - MIN_SIZE * 2);
+    let size = Math.round(MIN_SIZE + Math.random() * (this.h - MIN_SIZE * 2));
 
     this.childA = new MapNode(this.x, this.y, this.w, size);
     this.childB = new MapNode(this.x, this.y + size, this.w, this.h - size);
   }
 
   splitVertically() {
-    let size = MIN_SIZE + Math.random() * (this.w - MIN_SIZE * 2);
+    let size = Math.round(MIN_SIZE + Math.random() * (this.w - MIN_SIZE * 2));
 
     this.childA = new MapNode(this.x, this.y, size, this.h);
     this.childB = new MapNode(this.x + size, this.y, this.w - size, this.h);
   }
 
   createRoom() {
-    this.roomW = MIN_ROOM_SIZE + Math.random() * (this.w - 2 * MIN_ROOM_OFFSET
-      - MIN_ROOM_SIZE);
-    this.roomH = MIN_ROOM_SIZE + Math.random() * (this.h - 2 * MIN_ROOM_OFFSET
-      - MIN_ROOM_SIZE);
-    this.roomX = this.x + MIN_ROOM_OFFSET + Math.random() * (this.w -
-      this.roomW - 2 * MIN_ROOM_OFFSET);
-    this.roomY = this.y + MIN_ROOM_OFFSET + Math.random() * (this.h -
-      this.roomH - 2 * MIN_ROOM_OFFSET);
+    this.roomW = Math.round(MIN_ROOM_SIZE + Math.random() *
+      (this.w - 2 * MIN_ROOM_OFFSET - MIN_ROOM_SIZE));
+    this.roomH = Math.round(MIN_ROOM_SIZE + Math.random() *
+      (this.h - 2 * MIN_ROOM_OFFSET - MIN_ROOM_SIZE));
+    this.roomX = Math.round(this.x + MIN_ROOM_OFFSET + Math.random() *
+      (this.w - this.roomW - 2 * MIN_ROOM_OFFSET));
+    this.roomY = Math.round(this.y + MIN_ROOM_OFFSET + Math.random() *
+      (this.h - this.roomH - 2 * MIN_ROOM_OFFSET));
   }
 
   leafCount() {

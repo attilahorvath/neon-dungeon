@@ -1,4 +1,3 @@
-import BasicShader from './BasicShader';
 import Map from './Map';
 
 export default class Game {
@@ -15,18 +14,13 @@ export default class Game {
       -1.0, 1.0, 0.0, 1.0
     ]);
 
-    this.basicShader = new BasicShader(this.gl);
     this.map = new Map(this.gl);
-
-    this.basicShader.use(this.gl);
-
-    this.gl.uniformMatrix4fv(this.basicShader.projection, false, this.projection);
   }
 
   update(timestamp) {}
 
   draw() {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.map.draw(this.gl, this.basicShader);
+    this.map.draw(this.gl, this.projection);
   }
 }
