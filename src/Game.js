@@ -17,7 +17,7 @@ export default class Game {
     this.map = new Map(this.gl);
   }
 
-  update(timestamp) {}
+  update() {}
 
   draw() {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);

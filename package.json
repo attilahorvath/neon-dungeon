@@ -20,6 +20,7 @@
   "homepage": "https://github.com/attilahorvath/neon-dungeon#readme",
   "devDependencies": {
     "rollup": "^0.47.5",
+    "rollup-plugin-eslint": "^4.0.0",
     "rollup-plugin-glsl": "^1.0.0",
     "rollup-watch": "^4.3.1"
   }

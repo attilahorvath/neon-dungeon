@@ -170,7 +170,7 @@ class Map {
 
       for (let y = aCenterY; y != bCenterY;
         y += Math.sign(bCenterY - aCenterY)) {
-          this.grid[y * MAP_WIDTH + aCenterX] = 0xFF;
+        this.grid[y * MAP_WIDTH + aCenterX] = 0xFF;
       }
 
       for (let x = aCenterX; x != bCenterX;
@@ -208,7 +208,7 @@ class Map {
     gl.uniform2f(this.shader.texSize, 640.0, 480.0);
 
     gl.drawElements(gl.TRIANGLES, 6,
-                    gl.UNSIGNED_SHORT, 0);
+      gl.UNSIGNED_SHORT, 0);
   }
 }
 
@@ -229,7 +229,7 @@ class Game {
     this.map = new Map(this.gl);
   }
 
-  update(timestamp) {}
+  update() {}
 
   draw() {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
