@@ -2,21 +2,25 @@ import MapNode from './MapNode';
 import MapShader from './MapShader';
 
 const TILE_SIZE = 10;
-const MAP_WIDTH = 640 / TILE_SIZE;
-const MAP_HEIGHT = 480 / TILE_SIZE;
 
 export default class Map {
-  constructor(gl) {
-    this.root = new MapNode(0, 0, MAP_WIDTH, MAP_HEIGHT);
+  constructor(gl, width, height) {
+    this.width = width;
+    this.height = height;
+
+    this.gridWidth = Math.ceil(this.width / TILE_SIZE);
+    this.gridHeight = Math.ceil(this.height / TILE_SIZE);
+
+    this.root = new MapNode(0, 0, this.gridWidth, this.gridHeight);
     this.root.split();
 
-    this.grid = new Uint8Array(MAP_WIDTH * MAP_HEIGHT);
+    this.grid = new Uint8Array(this.gridWidth * this.gridHeight);
 
     const vertices = new Float32Array([
-      0, 0, 0, 0,
-      639, 0, 1, 0,
-      0, 479, 0, 1,
-      639, 479, 1, 1
+      0.0, 0.0, 0.0, 0.0,
+      this.width - 1.0, 0.0, 1.0, 0.0,
+      0.0, this.height - 1.0, 0.0, 1.0,
+      this.width - 1.0, this.height - 1.0, 1.0, 1.0
     ]);
 
     const indices = new Uint16Array([
@@ -27,7 +31,7 @@ export default class Map {
     this.root.visitLeaves(leaf => {
       for (let y = leaf.roomY; y < leaf.roomY + leaf.roomH; y++) {
         for (let x = leaf.roomX; x < leaf.roomX + leaf.roomW; x++) {
-          this.grid[y * MAP_WIDTH + x] = 0xFF;
+          this.grid[y * this.gridWidth + x] = 0xFF;
         }
       }
     });
@@ -40,20 +44,20 @@ export default class Map {
 
       for (let y = aCenterY; y != bCenterY;
         y += Math.sign(bCenterY - aCenterY)) {
-        this.grid[y * MAP_WIDTH + aCenterX] = 0xFF;
+        this.grid[y * this.gridWidth + aCenterX] = 0xFF;
       }
 
       for (let x = aCenterX; x != bCenterX;
         x += Math.sign(bCenterX - aCenterX)) {
-        this.grid[bCenterY * MAP_WIDTH + x] = 0xFF;
+        this.grid[bCenterY * this.gridWidth + x] = 0xFF;
       }
     });
 
     this.texture = gl.createTexture();
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, MAP_WIDTH, MAP_HEIGHT, 0,
-      gl.ALPHA, gl.UNSIGNED_BYTE, this.grid);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, this.gridWidth, this.gridHeight,
+      0, gl.ALPHA, gl.UNSIGNED_BYTE, this.grid);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -79,9 +83,8 @@ export default class Map {
     gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniform4f(this.shader.color, 0.0, 0.0, 1.0, 1.0);
     gl.uniform1i(this.shader.sampler, 0);
-    gl.uniform2f(this.shader.texSize, 640.0, 480.0);
+    gl.uniform2f(this.shader.quadSize, this.width, this.height);
 
-    gl.drawElements(gl.TRIANGLES, 6,
-      gl.UNSIGNED_SHORT, 0);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
   }
 }

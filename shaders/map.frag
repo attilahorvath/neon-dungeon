@@ -4,19 +4,19 @@ const float tolerance = 0.2;
 
 uniform sampler2D sampler;
 uniform mediump vec4 color;
-uniform mediump vec2 texSize;
+uniform mediump vec2 quadSize;
 
 varying highp vec2 texCoord;
 
 void main() {
   float left = step(tolerance,
-    texture2D(sampler, vec2(texCoord.x - 1.0 / texSize.x, texCoord.y)).a);
+    texture2D(sampler, vec2(texCoord.x - 1.0 / quadSize.x, texCoord.y)).a);
   float right = step(tolerance,
-    texture2D(sampler, vec2(texCoord.x + 1.0 / texSize.x, texCoord.y)).a);
+    texture2D(sampler, vec2(texCoord.x + 1.0 / quadSize.x, texCoord.y)).a);
   float top = step(tolerance,
-    texture2D(sampler, vec2(texCoord.x, texCoord.y - 1.0 / texSize.y)).a);
+    texture2D(sampler, vec2(texCoord.x, texCoord.y - 1.0 / quadSize.y)).a);
   float bottom = step(tolerance,
-    texture2D(sampler, vec2(texCoord.x, texCoord.y + 1.0 / texSize.y)).a);
+    texture2D(sampler, vec2(texCoord.x, texCoord.y + 1.0 / quadSize.y)).a);
   float current = step(tolerance,
     texture2D(sampler, vec2(texCoord.x, texCoord.y)).a);
 

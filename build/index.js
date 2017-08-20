@@ -159,11 +159,11 @@ class MapNode {
 
 var vertexShaderSource$1 = "uniform mediump mat4 projection;uniform mediump mat4 view;attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=projection*view*vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
 
-var fragmentShaderSource$1 = "precision highp float;const float tolerance=0.2;uniform sampler2D sampler;uniform mediump vec4 color;uniform mediump vec2 texSize;varying highp vec2 texCoord;void main(){float left=step(tolerance,texture2D(sampler,vec2(texCoord.x-1.0/texSize.x,texCoord.y)).a);float right=step(tolerance,texture2D(sampler,vec2(texCoord.x+1.0/texSize.x,texCoord.y)).a);float top=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y-1.0/texSize.y)).a);float bottom=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y+1.0/texSize.y)).a);float current=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y)).a);float p=((1.0-left)+(1.0-right)+(1.0-top)+(1.0-bottom))*current;gl_FragColor=color*p;}";
+var fragmentShaderSource$1 = "precision highp float;const float tolerance=0.2;uniform sampler2D sampler;uniform mediump vec4 color;uniform mediump vec2 quadSize;varying highp vec2 texCoord;void main(){float left=step(tolerance,texture2D(sampler,vec2(texCoord.x-1.0/quadSize.x,texCoord.y)).a);float right=step(tolerance,texture2D(sampler,vec2(texCoord.x+1.0/quadSize.x,texCoord.y)).a);float top=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y-1.0/quadSize.y)).a);float bottom=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y+1.0/quadSize.y)).a);float current=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y)).a);float p=((1.0-left)+(1.0-right)+(1.0-top)+(1.0-bottom))*current;gl_FragColor=color*p;}";
 
 class MapShader extends Shader {
   constructor(gl) {
-    const uniforms = ['projection', 'view', 'sampler', 'color', 'texSize'];
+    const uniforms = ['projection', 'view', 'sampler', 'color', 'quadSize'];
     const attributes = ['vertexPosition', 'vertexTexCoord'];
 
     super(gl, vertexShaderSource$1, fragmentShaderSource$1, uniforms, attributes);
@@ -178,21 +178,25 @@ class MapShader extends Shader {
 }
 
 const TILE_SIZE = 10;
-const MAP_WIDTH = 640 / TILE_SIZE;
-const MAP_HEIGHT = 480 / TILE_SIZE;
 
 class Map {
-  constructor(gl) {
-    this.root = new MapNode(0, 0, MAP_WIDTH, MAP_HEIGHT);
+  constructor(gl, width, height) {
+    this.width = width;
+    this.height = height;
+
+    this.gridWidth = Math.ceil(this.width / TILE_SIZE);
+    this.gridHeight = Math.ceil(this.height / TILE_SIZE);
+
+    this.root = new MapNode(0, 0, this.gridWidth, this.gridHeight);
     this.root.split();
 
-    this.grid = new Uint8Array(MAP_WIDTH * MAP_HEIGHT);
+    this.grid = new Uint8Array(this.gridWidth * this.gridHeight);
 
     const vertices = new Float32Array([
-      0, 0, 0, 0,
-      639, 0, 1, 0,
-      0, 479, 0, 1,
-      639, 479, 1, 1
+      0.0, 0.0, 0.0, 0.0,
+      this.width - 1.0, 0.0, 1.0, 0.0,
+      0.0, this.height - 1.0, 0.0, 1.0,
+      this.width - 1.0, this.height - 1.0, 1.0, 1.0
     ]);
 
     const indices = new Uint16Array([
@@ -203,7 +207,7 @@ class Map {
     this.root.visitLeaves(leaf => {
       for (let y = leaf.roomY; y < leaf.roomY + leaf.roomH; y++) {
         for (let x = leaf.roomX; x < leaf.roomX + leaf.roomW; x++) {
-          this.grid[y * MAP_WIDTH + x] = 0xFF;
+          this.grid[y * this.gridWidth + x] = 0xFF;
         }
       }
     });
@@ -216,20 +220,20 @@ class Map {
 
       for (let y = aCenterY; y != bCenterY;
         y += Math.sign(bCenterY - aCenterY)) {
-        this.grid[y * MAP_WIDTH + aCenterX] = 0xFF;
+        this.grid[y * this.gridWidth + aCenterX] = 0xFF;
       }
 
       for (let x = aCenterX; x != bCenterX;
         x += Math.sign(bCenterX - aCenterX)) {
-        this.grid[bCenterY * MAP_WIDTH + x] = 0xFF;
+        this.grid[bCenterY * this.gridWidth + x] = 0xFF;
       }
     });
 
     this.texture = gl.createTexture();
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, MAP_WIDTH, MAP_HEIGHT, 0,
-      gl.ALPHA, gl.UNSIGNED_BYTE, this.grid);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.ALPHA, this.gridWidth, this.gridHeight,
+      0, gl.ALPHA, gl.UNSIGNED_BYTE, this.grid);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
@@ -255,10 +259,9 @@ class Map {
     gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniform4f(this.shader.color, 0.0, 0.0, 1.0, 1.0);
     gl.uniform1i(this.shader.sampler, 0);
-    gl.uniform2f(this.shader.texSize, 640.0, 480.0);
+    gl.uniform2f(this.shader.quadSize, this.width, this.height);
 
-    gl.drawElements(gl.TRIANGLES, 6,
-      gl.UNSIGNED_SHORT, 0);
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
   }
 }
 
@@ -307,8 +310,8 @@ class Game {
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
     this.projection = new Float32Array([
-      2.0 / 639.0, 0.0, 0.0, 0.0,
-      0.0, -2.0 / 479.0, 0.0, 0.0,
+      2.0 / (this.canvas.width - 1.0), 0.0, 0.0, 0.0,
+      0.0, -2.0 / (this.canvas.height - 1.0), 0.0, 0.0,
       0.0, 0.0, -1.0, 0.0,
       -1.0, 1.0, 0.0, 1.0
     ]);
@@ -321,7 +324,7 @@ class Game {
     ]);
 
     this.basicShader = new BasicShader(this.gl);
-    this.map = new Map(this.gl);
+    this.map = new Map(this.gl, this.canvas.width * 2, this.canvas.height * 2);
 
     let leaf = this.map.root.getRandomLeaf();
 

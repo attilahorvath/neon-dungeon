@@ -10,8 +10,8 @@ export default class Game {
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
     this.projection = new Float32Array([
-      2.0 / 639.0, 0.0, 0.0, 0.0,
-      0.0, -2.0 / 479.0, 0.0, 0.0,
+      2.0 / (this.canvas.width - 1.0), 0.0, 0.0, 0.0,
+      0.0, -2.0 / (this.canvas.height - 1.0), 0.0, 0.0,
       0.0, 0.0, -1.0, 0.0,
       -1.0, 1.0, 0.0, 1.0
     ]);
@@ -24,7 +24,7 @@ export default class Game {
     ]);
 
     this.basicShader = new BasicShader(this.gl);
-    this.map = new Map(this.gl);
+    this.map = new Map(this.gl, this.canvas.width * 2, this.canvas.height * 2);
 
     let leaf = this.map.root.getRandomLeaf();
 
