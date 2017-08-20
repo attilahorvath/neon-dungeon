@@ -69,10 +69,14 @@ export default class Map {
     this.shader = new MapShader(gl);
   }
 
-  draw(gl, projection) {
+  draw(gl, projection, view) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
     this.shader.use(gl);
 
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniform4f(this.shader.color, 0.0, 0.0, 1.0, 1.0);
     gl.uniform1i(this.shader.sampler, 0);
     gl.uniform2f(this.shader.texSize, 640.0, 480.0);

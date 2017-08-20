@@ -1,7 +1,7 @@
-import vertexShaderSource from '../shaders/map.vert';
-import fragmentShaderSource from '../shaders/map.frag';
+import vertexShaderSource from '../shaders/basic.vert';
+import fragmentShaderSource from '../shaders/basic.frag';
 
-export default class MapShader {
+export default class BasicShader {
   constructor(gl) {
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
     gl.shaderSource(vertexShader, vertexShaderSource);
@@ -17,22 +17,17 @@ export default class MapShader {
     gl.linkProgram(this.program);
 
     this.vertexPosition = gl.getAttribLocation(this.program, 'vertexPosition');
-    this.vertexTexCoord = gl.getAttribLocation(this.program, 'vertexTexCoord');
 
     this.projection = gl.getUniformLocation(this.program, 'projection');
     this.view = gl.getUniformLocation(this.program, 'view');
-    this.sampler = gl.getUniformLocation(this.program, 'sampler');
     this.color = gl.getUniformLocation(this.program, 'color');
-    this.texSize = gl.getUniformLocation(this.program, 'texSize');
   }
 
   use(gl) {
     gl.useProgram(this.program);
 
     gl.enableVertexAttribArray(this.vertexPosition);
-    gl.enableVertexAttribArray(this.vertexTexCoord);
 
-    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 16, 0);
-    gl.vertexAttribPointer(this.vertexTexCoord, 2, gl.FLOAT, false, 16, 8);
+    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 0, 0);
   }
 }

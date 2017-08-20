@@ -1,6 +1,41 @@
 (function () {
 'use strict';
 
+var vertexShaderSource = "uniform mediump mat4 projection;uniform mediump mat4 view;attribute vec2 vertexPosition;void main(){gl_Position=projection*view*vec4(vertexPosition,0.0,1.0);}";
+
+var fragmentShaderSource = "uniform mediump vec4 color;void main(){gl_FragColor=color;}";
+
+class BasicShader {
+  constructor(gl) {
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vertexShader, vertexShaderSource);
+    gl.compileShader(vertexShader);
+
+    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fragmentShader, fragmentShaderSource);
+    gl.compileShader(fragmentShader);
+
+    this.program = gl.createProgram();
+    gl.attachShader(this.program, vertexShader);
+    gl.attachShader(this.program, fragmentShader);
+    gl.linkProgram(this.program);
+
+    this.vertexPosition = gl.getAttribLocation(this.program, 'vertexPosition');
+
+    this.projection = gl.getUniformLocation(this.program, 'projection');
+    this.view = gl.getUniformLocation(this.program, 'view');
+    this.color = gl.getUniformLocation(this.program, 'color');
+  }
+
+  use(gl) {
+    gl.useProgram(this.program);
+
+    gl.enableVertexAttribArray(this.vertexPosition);
+
+    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 0, 0);
+  }
+}
+
 const MIN_SIZE = 5;
 const MIN_ROOM_OFFSET = 1;
 const MIN_ROOM_SIZE = 3;
@@ -91,20 +126,29 @@ class MapNode {
 
     return Math.random() < 0.5 ? leafA : leafB;
   }
+
+  getRandomLeaf() {
+    if (this.isLeaf()) {
+      return this;
+    }
+
+    return Math.random() < 0.5 ? this.childA.getRandomLeaf() :
+      this.childB.getRandomLeaf();
+  }
 }
 
-var vertexShaderSource = "uniform mediump mat4 projection;attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=projection*vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+var vertexShaderSource$1 = "uniform mediump mat4 projection;uniform mediump mat4 view;attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=projection*view*vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
 
-var fragmentShaderSource = "precision highp float;const float tolerance=0.2;uniform sampler2D sampler;uniform mediump vec4 color;uniform mediump vec2 texSize;varying highp vec2 texCoord;void main(){float left=step(tolerance,texture2D(sampler,vec2(texCoord.x-1.0/texSize.x,texCoord.y)).a);float right=step(tolerance,texture2D(sampler,vec2(texCoord.x+1.0/texSize.x,texCoord.y)).a);float top=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y-1.0/texSize.y)).a);float bottom=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y+1.0/texSize.y)).a);float current=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y)).a);float p=((1.0-left)+(1.0-right)+(1.0-top)+(1.0-bottom))*current;gl_FragColor=color*p;}";
+var fragmentShaderSource$1 = "precision highp float;const float tolerance=0.2;uniform sampler2D sampler;uniform mediump vec4 color;uniform mediump vec2 texSize;varying highp vec2 texCoord;void main(){float left=step(tolerance,texture2D(sampler,vec2(texCoord.x-1.0/texSize.x,texCoord.y)).a);float right=step(tolerance,texture2D(sampler,vec2(texCoord.x+1.0/texSize.x,texCoord.y)).a);float top=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y-1.0/texSize.y)).a);float bottom=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y+1.0/texSize.y)).a);float current=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y)).a);float p=((1.0-left)+(1.0-right)+(1.0-top)+(1.0-bottom))*current;gl_FragColor=color*p;}";
 
 class MapShader {
   constructor(gl) {
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vertexShader, vertexShaderSource);
+    gl.shaderSource(vertexShader, vertexShaderSource$1);
     gl.compileShader(vertexShader);
 
     const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(fragmentShader, fragmentShaderSource);
+    gl.shaderSource(fragmentShader, fragmentShaderSource$1);
     gl.compileShader(fragmentShader);
 
     this.program = gl.createProgram();
@@ -113,12 +157,10 @@ class MapShader {
     gl.linkProgram(this.program);
 
     this.vertexPosition = gl.getAttribLocation(this.program, 'vertexPosition');
-    gl.enableVertexAttribArray(this.vertexPosition);
-
     this.vertexTexCoord = gl.getAttribLocation(this.program, 'vertexTexCoord');
-    gl.enableVertexAttribArray(this.vertexTexCoord);
 
     this.projection = gl.getUniformLocation(this.program, 'projection');
+    this.view = gl.getUniformLocation(this.program, 'view');
     this.sampler = gl.getUniformLocation(this.program, 'sampler');
     this.color = gl.getUniformLocation(this.program, 'color');
     this.texSize = gl.getUniformLocation(this.program, 'texSize');
@@ -126,6 +168,10 @@ class MapShader {
 
   use(gl) {
     gl.useProgram(this.program);
+
+    gl.enableVertexAttribArray(this.vertexPosition);
+    gl.enableVertexAttribArray(this.vertexTexCoord);
+
     gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 16, 0);
     gl.vertexAttribPointer(this.vertexTexCoord, 2, gl.FLOAT, false, 16, 8);
   }
@@ -199,16 +245,57 @@ class Map {
     this.shader = new MapShader(gl);
   }
 
-  draw(gl, projection) {
+  draw(gl, projection, view) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
     this.shader.use(gl);
 
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniform4f(this.shader.color, 0.0, 0.0, 1.0, 1.0);
     gl.uniform1i(this.shader.sampler, 0);
     gl.uniform2f(this.shader.texSize, 640.0, 480.0);
 
     gl.drawElements(gl.TRIANGLES, 6,
       gl.UNSIGNED_SHORT, 0);
+  }
+}
+
+const PLAYER_RADIUS = 5;
+const PLAYER_SEGMENTS = 10;
+const VERTEX_SIZE = 2;
+
+class Player {
+  constructor(gl, basicShader, x, y) {
+    const vertices = new Float32Array(PLAYER_SEGMENTS * VERTEX_SIZE);
+
+    let vertexIndex = 0;
+
+    for (let i = 0; i < PLAYER_SEGMENTS; i++) {
+      let angle = ((Math.PI * 2.0) / PLAYER_SEGMENTS) * i;
+
+      vertices[vertexIndex++] = x + Math.cos(angle) * PLAYER_RADIUS;
+      vertices[vertexIndex++] = y + Math.sin(angle) * PLAYER_RADIUS;
+    }
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.shader = basicShader;
+  }
+
+  draw(gl, projection, view) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+
+    this.shader.use(gl);
+
+    gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, view);
+    gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
+
+    gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
   }
 }
 
@@ -226,14 +313,55 @@ class Game {
       -1.0, 1.0, 0.0, 1.0
     ]);
 
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.basicShader = new BasicShader(this.gl);
     this.map = new Map(this.gl);
+
+    let leaf = this.map.root.getRandomLeaf();
+
+    this.player = new Player(this.gl, this.basicShader,
+      (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
+
+    this.up = false;
+    this.down = false;
+    this.left = false;
+    this.right = false;
+
+    this.lastTimestamp = performance.now();
   }
 
-  update() {}
+  update(timestamp) {
+    let deltaTime = timestamp - this.lastTimestamp;
+
+    if (this.up) {
+      this.view[13] += deltaTime * 0.1;
+    }
+
+    if (this.down) {
+      this.view[13] -= deltaTime * 0.1;
+    }
+
+    if (this.left) {
+      this.view[12] += deltaTime * 0.1;
+    }
+
+    if (this.right) {
+      this.view[12] -= deltaTime * 0.1;
+    }
+
+    this.lastTimestamp = timestamp;
+  }
 
   draw() {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.map.draw(this.gl, this.projection);
+    this.map.draw(this.gl, this.projection, this.view);
+    this.player.draw(this.gl, this.projection, this.view);
   }
 }
 
@@ -245,6 +373,40 @@ const updateGame = timestamp => {
   game.update(timestamp);
   game.draw();
 };
+
+addEventListener('keydown', event => {
+  switch (event.keyCode) {
+  case 38: case 87: case 75:
+    game.up = true;
+    break;
+  case 40: case 83: case 74:
+    game.down = true;
+    break;
+  case 37: case 65: case 72:
+    game.left = true;
+    break;
+  case 39: case 68: case 76:
+    game.right = true;
+    break;
+  }
+});
+
+addEventListener('keyup', event => {
+  switch (event.keyCode) {
+  case 38: case 87: case 75:
+    game.up = false;
+    break;
+  case 40: case 83: case 74:
+    game.down = false;
+    break;
+  case 37: case 65: case 72:
+    game.left = false;
+    break;
+  case 39: case 68: case 76:
+    game.right = false;
+    break;
+  }
+});
 
 requestAnimationFrame(updateGame);
 

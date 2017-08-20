@@ -88,4 +88,13 @@ export default class MapNode {
 
     return Math.random() < 0.5 ? leafA : leafB;
   }
+
+  getRandomLeaf() {
+    if (this.isLeaf()) {
+      return this;
+    }
+
+    return Math.random() < 0.5 ? this.childA.getRandomLeaf() :
+      this.childB.getRandomLeaf();
+  }
 }
