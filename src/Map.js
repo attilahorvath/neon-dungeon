@@ -87,4 +87,9 @@ export default class Map {
 
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
   }
+
+  tileAt(x, y) {
+    return this.grid[Math.floor(y / TILE_SIZE) * this.gridWidth +
+      Math.floor(x / TILE_SIZE)];
+  }
 }

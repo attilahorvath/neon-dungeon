@@ -1,7 +1,7 @@
 (function () {
 'use strict';
 
-var vertexShaderSource = "uniform mediump mat4 projection;uniform mediump mat4 view;attribute vec2 vertexPosition;void main(){gl_Position=projection*view*vec4(vertexPosition,0.0,1.0);}";
+var vertexShaderSource = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump mat4 model;attribute vec2 vertexPosition;void main(){gl_Position=projection*view*model*vec4(vertexPosition,0.0,1.0);}";
 
 var fragmentShaderSource = "uniform mediump vec4 color;void main(){gl_FragColor=color;}";
 
@@ -43,7 +43,7 @@ class Shader {
 
 class BasicShader extends Shader {
   constructor(gl) {
-    const uniforms = ['projection', 'view', 'color'];
+    const uniforms = ['projection', 'view', 'model', 'color'];
     const attributes = ['vertexPosition'];
 
     super(gl, vertexShaderSource, fragmentShaderSource, uniforms, attributes);
@@ -263,6 +263,11 @@ class Map {
 
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
   }
+
+  tileAt(x, y) {
+    return this.grid[Math.floor(y / TILE_SIZE) * this.gridWidth +
+      Math.floor(x / TILE_SIZE)];
+  }
 }
 
 const PLAYER_RADIUS = 5;
@@ -278,8 +283,8 @@ class Player {
     for (let i = 0; i < PLAYER_SEGMENTS; i++) {
       let angle = ((Math.PI * 2.0) / PLAYER_SEGMENTS) * i;
 
-      vertices[vertexIndex++] = x + Math.cos(angle) * PLAYER_RADIUS;
-      vertices[vertexIndex++] = y + Math.sin(angle) * PLAYER_RADIUS;
+      vertices[vertexIndex++] = Math.cos(angle) * PLAYER_RADIUS;
+      vertices[vertexIndex++] = Math.sin(angle) * PLAYER_RADIUS;
     }
 
     this.vertexBuffer = gl.createBuffer();
@@ -287,6 +292,41 @@ class Player {
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
     this.shader = basicShader;
+
+    this.x = x;
+    this.y = y;
+
+    this.model = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      x, y, 0.0, 1.0
+    ]);
+  }
+
+  update(deltaTime, game) {
+    if (game.up && game.map.tileAt(this.x, this.y - PLAYER_RADIUS -
+      deltaTime * 0.1) == 0xFF) {
+      this.y -= deltaTime * 0.1;
+    }
+
+    if (game.down && game.map.tileAt(this.x, this.y + PLAYER_RADIUS +
+      deltaTime * 0.1) == 0xFF) {
+      this.y += deltaTime * 0.1;
+    }
+
+    if (game.left && game.map.tileAt(this.x - PLAYER_RADIUS -
+      deltaTime * 0.1, this.y) == 0xFF) {
+      this.x -= deltaTime * 0.1;
+    }
+
+    if (game.right && game.map.tileAt(this.x + PLAYER_RADIUS +
+      deltaTime * 0.1, this.y) == 0xFF) {
+      this.x += deltaTime * 0.1;
+    }
+
+    this.model[12] = this.x;
+    this.model[13] = this.y;
   }
 
   draw(gl, projection, view) {
@@ -296,6 +336,7 @@ class Player {
 
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
+    gl.uniformMatrix4fv(this.shader.model, false, this.model);
     gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
 
     gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
@@ -316,11 +357,14 @@ class Game {
       -1.0, 1.0, 0.0, 1.0
     ]);
 
+    this.cameraX = 0.0;
+    this.cameraY = 0.0;
+
     this.view = new Float32Array([
       1.0, 0.0, 0.0, 0.0,
       0.0, 1.0, 0.0, 0.0,
       0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0
+      -this.cameraX, -this.cameraY, 0.0, 1.0
     ]);
 
     this.basicShader = new BasicShader(this.gl);
@@ -342,21 +386,13 @@ class Game {
   update(timestamp) {
     let deltaTime = timestamp - this.lastTimestamp;
 
-    if (this.up) {
-      this.view[13] += deltaTime * 0.1;
-    }
+    this.player.update(deltaTime, this);
 
-    if (this.down) {
-      this.view[13] -= deltaTime * 0.1;
-    }
+    this.cameraX = this.player.x - this.canvas.width / 2.0;
+    this.cameraY = this.player.y - this.canvas.height / 2.0;
 
-    if (this.left) {
-      this.view[12] += deltaTime * 0.1;
-    }
-
-    if (this.right) {
-      this.view[12] -= deltaTime * 0.1;
-    }
+    this.view[12] = -this.cameraX;
+    this.view[13] = -this.cameraY;
 
     this.lastTimestamp = timestamp;
   }

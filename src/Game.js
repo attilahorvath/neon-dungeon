@@ -16,11 +16,14 @@ export default class Game {
       -1.0, 1.0, 0.0, 1.0
     ]);
 
+    this.cameraX = 0.0;
+    this.cameraY = 0.0;
+
     this.view = new Float32Array([
       1.0, 0.0, 0.0, 0.0,
       0.0, 1.0, 0.0, 0.0,
       0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0
+      -this.cameraX, -this.cameraY, 0.0, 1.0
     ]);
 
     this.basicShader = new BasicShader(this.gl);
@@ -42,21 +45,13 @@ export default class Game {
   update(timestamp) {
     let deltaTime = timestamp - this.lastTimestamp;
 
-    if (this.up) {
-      this.view[13] += deltaTime * 0.1;
-    }
+    this.player.update(deltaTime, this);
 
-    if (this.down) {
-      this.view[13] -= deltaTime * 0.1;
-    }
+    this.cameraX = this.player.x - this.canvas.width / 2.0;
+    this.cameraY = this.player.y - this.canvas.height / 2.0;
 
-    if (this.left) {
-      this.view[12] += deltaTime * 0.1;
-    }
-
-    if (this.right) {
-      this.view[12] -= deltaTime * 0.1;
-    }
+    this.view[12] = -this.cameraX;
+    this.view[13] = -this.cameraY;
 
     this.lastTimestamp = timestamp;
   }

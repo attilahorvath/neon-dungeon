@@ -4,7 +4,7 @@ import Shader from './Shader';
 
 export default class BasicShader extends Shader {
   constructor(gl) {
-    const uniforms = ['projection', 'view', 'color'];
+    const uniforms = ['projection', 'view', 'model', 'color'];
     const attributes = ['vertexPosition'];
 
     super(gl, vertexShaderSource, fragmentShaderSource, uniforms, attributes);
