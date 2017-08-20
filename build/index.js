@@ -5,8 +5,9 @@ var vertexShaderSource = "uniform mediump mat4 projection;uniform mediump mat4 v
 
 var fragmentShaderSource = "uniform mediump vec4 color;void main(){gl_FragColor=color;}";
 
-class BasicShader {
-  constructor(gl) {
+class Shader {
+  constructor(gl, vertexShaderSource, fragmentShaderSource, uniforms,
+    attributes) {
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
     gl.shaderSource(vertexShader, vertexShaderSource);
     gl.compileShader(vertexShader);
@@ -20,17 +21,36 @@ class BasicShader {
     gl.attachShader(this.program, fragmentShader);
     gl.linkProgram(this.program);
 
-    this.vertexPosition = gl.getAttribLocation(this.program, 'vertexPosition');
+    for (const uniform of uniforms) {
+      this[uniform] = gl.getUniformLocation(this.program, uniform);
+    }
 
-    this.projection = gl.getUniformLocation(this.program, 'projection');
-    this.view = gl.getUniformLocation(this.program, 'view');
-    this.color = gl.getUniformLocation(this.program, 'color');
+    this.attributes = attributes;
+
+    for (const attribute of this.attributes) {
+      this[attribute] = gl.getAttribLocation(this.program, attribute);
+    }
   }
 
   use(gl) {
     gl.useProgram(this.program);
 
-    gl.enableVertexAttribArray(this.vertexPosition);
+    for (const attribute of this.attributes) {
+      gl.enableVertexAttribArray(this[attribute]);
+    }
+  }
+}
+
+class BasicShader extends Shader {
+  constructor(gl) {
+    const uniforms = ['projection', 'view', 'color'];
+    const attributes = ['vertexPosition'];
+
+    super(gl, vertexShaderSource, fragmentShaderSource, uniforms, attributes);
+  }
+
+  use(gl) {
+    super.use(gl);
 
     gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 0, 0);
   }
@@ -141,36 +161,16 @@ var vertexShaderSource$1 = "uniform mediump mat4 projection;uniform mediump mat4
 
 var fragmentShaderSource$1 = "precision highp float;const float tolerance=0.2;uniform sampler2D sampler;uniform mediump vec4 color;uniform mediump vec2 texSize;varying highp vec2 texCoord;void main(){float left=step(tolerance,texture2D(sampler,vec2(texCoord.x-1.0/texSize.x,texCoord.y)).a);float right=step(tolerance,texture2D(sampler,vec2(texCoord.x+1.0/texSize.x,texCoord.y)).a);float top=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y-1.0/texSize.y)).a);float bottom=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y+1.0/texSize.y)).a);float current=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y)).a);float p=((1.0-left)+(1.0-right)+(1.0-top)+(1.0-bottom))*current;gl_FragColor=color*p;}";
 
-class MapShader {
+class MapShader extends Shader {
   constructor(gl) {
-    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(vertexShader, vertexShaderSource$1);
-    gl.compileShader(vertexShader);
+    const uniforms = ['projection', 'view', 'sampler', 'color', 'texSize'];
+    const attributes = ['vertexPosition', 'vertexTexCoord'];
 
-    const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-    gl.shaderSource(fragmentShader, fragmentShaderSource$1);
-    gl.compileShader(fragmentShader);
-
-    this.program = gl.createProgram();
-    gl.attachShader(this.program, vertexShader);
-    gl.attachShader(this.program, fragmentShader);
-    gl.linkProgram(this.program);
-
-    this.vertexPosition = gl.getAttribLocation(this.program, 'vertexPosition');
-    this.vertexTexCoord = gl.getAttribLocation(this.program, 'vertexTexCoord');
-
-    this.projection = gl.getUniformLocation(this.program, 'projection');
-    this.view = gl.getUniformLocation(this.program, 'view');
-    this.sampler = gl.getUniformLocation(this.program, 'sampler');
-    this.color = gl.getUniformLocation(this.program, 'color');
-    this.texSize = gl.getUniformLocation(this.program, 'texSize');
+    super(gl, vertexShaderSource$1, fragmentShaderSource$1, uniforms, attributes);
   }
 
   use(gl) {
-    gl.useProgram(this.program);
-
-    gl.enableVertexAttribArray(this.vertexPosition);
-    gl.enableVertexAttribArray(this.vertexTexCoord);
+    super.use(gl);
 
     gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 16, 0);
     gl.vertexAttribPointer(this.vertexTexCoord, 2, gl.FLOAT, false, 16, 8);
