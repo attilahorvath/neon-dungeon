@@ -270,9 +270,10 @@ class Map {
   }
 }
 
-const PLAYER_RADIUS = 5;
+const PLAYER_RADIUS = 4;
 const PLAYER_SEGMENTS = 10;
 const VERTEX_SIZE = 2;
+const PLAYER_SPEED = 0.1;
 
 class Player {
   constructor(gl, basicShader, x, y) {
@@ -304,29 +305,36 @@ class Player {
     ]);
   }
 
+  validPosition(map, x, y) {
+    return map.tileAt(x - PLAYER_RADIUS, y) == 0xFF
+      && map.tileAt(x + PLAYER_RADIUS, y) == 0xFF
+      && map.tileAt(x, y - PLAYER_RADIUS) == 0xFF
+      && map.tileAt(x, y + PLAYER_RADIUS) == 0xFF;
+  }
+
   update(deltaTime, game) {
-    if (game.up && game.map.tileAt(this.x, this.y - PLAYER_RADIUS -
-      deltaTime * 0.1) == 0xFF) {
-      this.y -= deltaTime * 0.1;
+    let distance = deltaTime * PLAYER_SPEED;
+
+    let dirX = (game.left ? -1 : 0) + (game.right ? 1 : 0);
+    let dirY = (game.up ? -1 : 0) + (game.down ? 1 : 0);
+
+    if (dirX != 0 && dirY != 0) {
+      dirX *= Math.SQRT2 / 2.0;
+      dirY *= Math.SQRT2 / 2.0;
     }
 
-    if (game.down && game.map.tileAt(this.x, this.y + PLAYER_RADIUS +
-      deltaTime * 0.1) == 0xFF) {
-      this.y += deltaTime * 0.1;
+    let newX = this.x + dirX * distance;
+    let newY = this.y + dirY * distance;
+
+    if (newX != this.x && this.validPosition(game.map, newX, this.y)) {
+      this.x = newX;
+      this.model[12] = this.x;
     }
 
-    if (game.left && game.map.tileAt(this.x - PLAYER_RADIUS -
-      deltaTime * 0.1, this.y) == 0xFF) {
-      this.x -= deltaTime * 0.1;
+    if (newY != this.y && this.validPosition(game.map, this.x, newY)) {
+      this.y = newY;
+      this.model[13] = this.y;
     }
-
-    if (game.right && game.map.tileAt(this.x + PLAYER_RADIUS +
-      deltaTime * 0.1, this.y) == 0xFF) {
-      this.x += deltaTime * 0.1;
-    }
-
-    this.model[12] = this.x;
-    this.model[13] = this.y;
   }
 
   draw(gl, projection, view) {
