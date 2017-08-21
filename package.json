@@ -24,7 +24,7 @@
     "eslint-plugin-node": "^5.1.1",
     "eslint-plugin-promise": "^3.5.0",
     "eslint-plugin-standard": "^3.0.1",
-    "rollup": "^0.47.5",
+    "rollup": "^0.48.2",
     "rollup-plugin-eslint": "^4.0.0",
     "rollup-plugin-glsl": "^1.0.0",
     "rollup-watch": "^4.3.1"
