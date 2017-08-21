@@ -19,6 +19,11 @@
   },
   "homepage": "https://github.com/attilahorvath/neon-dungeon#readme",
   "devDependencies": {
+    "eslint-config-standard": "^10.2.1",
+    "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-node": "^5.1.1",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^3.0.1",
     "rollup": "^0.47.5",
     "rollup-plugin-eslint": "^4.0.0",
     "rollup-plugin-glsl": "^1.0.0",

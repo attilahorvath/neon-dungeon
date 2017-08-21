@@ -37,17 +37,17 @@ export default class Map {
     });
 
     this.root.visitLeafPairs((leafA, leafB) => {
-      let aCenterX = Math.floor(leafA.roomX + leafA.roomW / 2);
-      let aCenterY = Math.floor(leafA.roomY + leafA.roomH / 2);
-      let bCenterX = Math.floor(leafB.roomX + leafB.roomW / 2);
-      let bCenterY = Math.floor(leafB.roomY + leafB.roomH / 2);
+      const aCenterX = Math.floor(leafA.roomX + leafA.roomW / 2);
+      const aCenterY = Math.floor(leafA.roomY + leafA.roomH / 2);
+      const bCenterX = Math.floor(leafB.roomX + leafB.roomW / 2);
+      const bCenterY = Math.floor(leafB.roomY + leafB.roomH / 2);
 
-      for (let y = aCenterY; y != bCenterY;
+      for (let y = aCenterY; y !== bCenterY;
         y += Math.sign(bCenterY - aCenterY)) {
         this.grid[y * this.gridWidth + aCenterX] = 0xFF;
       }
 
-      for (let x = aCenterX; x != bCenterX;
+      for (let x = aCenterX; x !== bCenterX;
         x += Math.sign(bCenterX - aCenterX)) {
         this.grid[bCenterY * this.gridWidth + x] = 0xFF;
       }
@@ -89,7 +89,8 @@ export default class Map {
   }
 
   tileAt(x, y) {
-    return this.grid[Math.floor(y / TILE_SIZE) * this.gridWidth +
-      Math.floor(x / TILE_SIZE)];
+    const tile = Math.floor(y / TILE_SIZE) * this.gridWidth +
+      Math.floor(x / TILE_SIZE);
+    return this.grid[tile];
   }
 }

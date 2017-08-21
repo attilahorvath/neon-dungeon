@@ -93,14 +93,14 @@ class MapNode {
   }
 
   splitHorizontally() {
-    let size = Math.round(MIN_SIZE + Math.random() * (this.h - MIN_SIZE * 2));
+    const size = Math.round(MIN_SIZE + Math.random() * (this.h - MIN_SIZE * 2));
 
     this.childA = new MapNode(this.x, this.y, this.w, size);
     this.childB = new MapNode(this.x, this.y + size, this.w, this.h - size);
   }
 
   splitVertically() {
-    let size = Math.round(MIN_SIZE + Math.random() * (this.w - MIN_SIZE * 2));
+    const size = Math.round(MIN_SIZE + Math.random() * (this.w - MIN_SIZE * 2));
 
     this.childA = new MapNode(this.x, this.y, size, this.h);
     this.childB = new MapNode(this.x + size, this.y, this.w - size, this.h);
@@ -139,8 +139,8 @@ class MapNode {
       return this;
     }
 
-    let leafA = this.childA.visitLeafPairs(f);
-    let leafB = this.childB.visitLeafPairs(f);
+    const leafA = this.childA.visitLeafPairs(f);
+    const leafB = this.childB.visitLeafPairs(f);
 
     f(leafA, leafB);
 
@@ -152,8 +152,8 @@ class MapNode {
       return this;
     }
 
-    return Math.random() < 0.5 ? this.childA.getRandomLeaf() :
-      this.childB.getRandomLeaf();
+    return Math.random() < 0.5 ? this.childA.getRandomLeaf()
+      : this.childB.getRandomLeaf();
   }
 }
 
@@ -213,17 +213,17 @@ class Map {
     });
 
     this.root.visitLeafPairs((leafA, leafB) => {
-      let aCenterX = Math.floor(leafA.roomX + leafA.roomW / 2);
-      let aCenterY = Math.floor(leafA.roomY + leafA.roomH / 2);
-      let bCenterX = Math.floor(leafB.roomX + leafB.roomW / 2);
-      let bCenterY = Math.floor(leafB.roomY + leafB.roomH / 2);
+      const aCenterX = Math.floor(leafA.roomX + leafA.roomW / 2);
+      const aCenterY = Math.floor(leafA.roomY + leafA.roomH / 2);
+      const bCenterX = Math.floor(leafB.roomX + leafB.roomW / 2);
+      const bCenterY = Math.floor(leafB.roomY + leafB.roomH / 2);
 
-      for (let y = aCenterY; y != bCenterY;
+      for (let y = aCenterY; y !== bCenterY;
         y += Math.sign(bCenterY - aCenterY)) {
         this.grid[y * this.gridWidth + aCenterX] = 0xFF;
       }
 
-      for (let x = aCenterX; x != bCenterX;
+      for (let x = aCenterX; x !== bCenterX;
         x += Math.sign(bCenterX - aCenterX)) {
         this.grid[bCenterY * this.gridWidth + x] = 0xFF;
       }
@@ -265,8 +265,9 @@ class Map {
   }
 
   tileAt(x, y) {
-    return this.grid[Math.floor(y / TILE_SIZE) * this.gridWidth +
-      Math.floor(x / TILE_SIZE)];
+    const tile = Math.floor(y / TILE_SIZE) * this.gridWidth +
+      Math.floor(x / TILE_SIZE);
+    return this.grid[tile];
   }
 }
 
@@ -282,7 +283,7 @@ class Player {
     let vertexIndex = 0;
 
     for (let i = 0; i < PLAYER_SEGMENTS; i++) {
-      let angle = ((Math.PI * 2.0) / PLAYER_SEGMENTS) * i;
+      const angle = ((Math.PI * 2.0) / PLAYER_SEGMENTS) * i;
 
       vertices[vertexIndex++] = Math.cos(angle) * PLAYER_RADIUS;
       vertices[vertexIndex++] = Math.sin(angle) * PLAYER_RADIUS;
@@ -306,32 +307,32 @@ class Player {
   }
 
   validPosition(map, x, y) {
-    return map.tileAt(x - PLAYER_RADIUS, y) == 0xFF
-      && map.tileAt(x + PLAYER_RADIUS, y) == 0xFF
-      && map.tileAt(x, y - PLAYER_RADIUS) == 0xFF
-      && map.tileAt(x, y + PLAYER_RADIUS) == 0xFF;
+    return map.tileAt(x - PLAYER_RADIUS, y) === 0xFF &&
+      map.tileAt(x + PLAYER_RADIUS, y) === 0xFF &&
+      map.tileAt(x, y - PLAYER_RADIUS) === 0xFF &&
+      map.tileAt(x, y + PLAYER_RADIUS) === 0xFF;
   }
 
   update(deltaTime, game) {
-    let distance = deltaTime * PLAYER_SPEED;
+    const distance = deltaTime * PLAYER_SPEED;
 
     let dirX = (game.left ? -1 : 0) + (game.right ? 1 : 0);
     let dirY = (game.up ? -1 : 0) + (game.down ? 1 : 0);
 
-    if (dirX != 0 && dirY != 0) {
+    if (dirX !== 0 && dirY !== 0) {
       dirX *= Math.SQRT2 / 2.0;
       dirY *= Math.SQRT2 / 2.0;
     }
 
-    let newX = this.x + dirX * distance;
-    let newY = this.y + dirY * distance;
+    const newX = this.x + dirX * distance;
+    const newY = this.y + dirY * distance;
 
-    if (newX != this.x && this.validPosition(game.map, newX, this.y)) {
+    if (newX !== this.x && this.validPosition(game.map, newX, this.y)) {
       this.x = newX;
       this.model[12] = this.x;
     }
 
-    if (newY != this.y && this.validPosition(game.map, this.x, newY)) {
+    if (newY !== this.y && this.validPosition(game.map, this.x, newY)) {
       this.y = newY;
       this.model[13] = this.y;
     }
@@ -378,7 +379,7 @@ class Game {
     this.basicShader = new BasicShader(this.gl);
     this.map = new Map(this.gl, this.canvas.width * 2, this.canvas.height * 2);
 
-    let leaf = this.map.root.getRandomLeaf();
+    const leaf = this.map.root.getRandomLeaf();
 
     this.player = new Player(this.gl, this.basicShader,
       (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
@@ -392,7 +393,7 @@ class Game {
   }
 
   update(timestamp) {
-    let deltaTime = timestamp - this.lastTimestamp;
+    const deltaTime = timestamp - this.lastTimestamp;
 
     this.player.update(deltaTime, this);
 
@@ -412,7 +413,7 @@ class Game {
   }
 }
 
-const game = new Game;
+const game = new Game();
 
 const updateGame = timestamp => {
   requestAnimationFrame(updateGame);

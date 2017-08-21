@@ -10,7 +10,7 @@ export default class Player {
     let vertexIndex = 0;
 
     for (let i = 0; i < PLAYER_SEGMENTS; i++) {
-      let angle = ((Math.PI * 2.0) / PLAYER_SEGMENTS) * i;
+      const angle = ((Math.PI * 2.0) / PLAYER_SEGMENTS) * i;
 
       vertices[vertexIndex++] = Math.cos(angle) * PLAYER_RADIUS;
       vertices[vertexIndex++] = Math.sin(angle) * PLAYER_RADIUS;
@@ -34,32 +34,32 @@ export default class Player {
   }
 
   validPosition(map, x, y) {
-    return map.tileAt(x - PLAYER_RADIUS, y) == 0xFF
-      && map.tileAt(x + PLAYER_RADIUS, y) == 0xFF
-      && map.tileAt(x, y - PLAYER_RADIUS) == 0xFF
-      && map.tileAt(x, y + PLAYER_RADIUS) == 0xFF;
+    return map.tileAt(x - PLAYER_RADIUS, y) === 0xFF &&
+      map.tileAt(x + PLAYER_RADIUS, y) === 0xFF &&
+      map.tileAt(x, y - PLAYER_RADIUS) === 0xFF &&
+      map.tileAt(x, y + PLAYER_RADIUS) === 0xFF;
   }
 
   update(deltaTime, game) {
-    let distance = deltaTime * PLAYER_SPEED;
+    const distance = deltaTime * PLAYER_SPEED;
 
     let dirX = (game.left ? -1 : 0) + (game.right ? 1 : 0);
     let dirY = (game.up ? -1 : 0) + (game.down ? 1 : 0);
 
-    if (dirX != 0 && dirY != 0) {
+    if (dirX !== 0 && dirY !== 0) {
       dirX *= Math.SQRT2 / 2.0;
       dirY *= Math.SQRT2 / 2.0;
     }
 
-    let newX = this.x + dirX * distance;
-    let newY = this.y + dirY * distance;
+    const newX = this.x + dirX * distance;
+    const newY = this.y + dirY * distance;
 
-    if (newX != this.x && this.validPosition(game.map, newX, this.y)) {
+    if (newX !== this.x && this.validPosition(game.map, newX, this.y)) {
       this.x = newX;
       this.model[12] = this.x;
     }
 
-    if (newY != this.y && this.validPosition(game.map, this.x, newY)) {
+    if (newY !== this.y && this.validPosition(game.map, this.x, newY)) {
       this.y = newY;
       this.model[13] = this.y;
     }

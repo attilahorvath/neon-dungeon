@@ -35,14 +35,14 @@ export default class MapNode {
   }
 
   splitHorizontally() {
-    let size = Math.round(MIN_SIZE + Math.random() * (this.h - MIN_SIZE * 2));
+    const size = Math.round(MIN_SIZE + Math.random() * (this.h - MIN_SIZE * 2));
 
     this.childA = new MapNode(this.x, this.y, this.w, size);
     this.childB = new MapNode(this.x, this.y + size, this.w, this.h - size);
   }
 
   splitVertically() {
-    let size = Math.round(MIN_SIZE + Math.random() * (this.w - MIN_SIZE * 2));
+    const size = Math.round(MIN_SIZE + Math.random() * (this.w - MIN_SIZE * 2));
 
     this.childA = new MapNode(this.x, this.y, size, this.h);
     this.childB = new MapNode(this.x + size, this.y, this.w - size, this.h);
@@ -81,8 +81,8 @@ export default class MapNode {
       return this;
     }
 
-    let leafA = this.childA.visitLeafPairs(f);
-    let leafB = this.childB.visitLeafPairs(f);
+    const leafA = this.childA.visitLeafPairs(f);
+    const leafB = this.childB.visitLeafPairs(f);
 
     f(leafA, leafB);
 
@@ -94,7 +94,7 @@ export default class MapNode {
       return this;
     }
 
-    return Math.random() < 0.5 ? this.childA.getRandomLeaf() :
-      this.childB.getRandomLeaf();
+    return Math.random() < 0.5 ? this.childA.getRandomLeaf()
+      : this.childB.getRandomLeaf();
   }
 }

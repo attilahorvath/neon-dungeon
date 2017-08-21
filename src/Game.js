@@ -29,7 +29,7 @@ export default class Game {
     this.basicShader = new BasicShader(this.gl);
     this.map = new Map(this.gl, this.canvas.width * 2, this.canvas.height * 2);
 
-    let leaf = this.map.root.getRandomLeaf();
+    const leaf = this.map.root.getRandomLeaf();
 
     this.player = new Player(this.gl, this.basicShader,
       (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
@@ -43,7 +43,7 @@ export default class Game {
   }
 
   update(timestamp) {
-    let deltaTime = timestamp - this.lastTimestamp;
+    const deltaTime = timestamp - this.lastTimestamp;
 
     this.player.update(deltaTime, this);
 
