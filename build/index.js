@@ -56,9 +56,9 @@ class BasicShader extends Shader {
   }
 }
 
-const MIN_SIZE = 5;
+const MIN_SIZE = 16;
 const MIN_ROOM_OFFSET = 1;
-const MIN_ROOM_SIZE = 3;
+const MIN_ROOM_SIZE = 10;
 
 class MapNode {
   constructor(x, y, w, h) {
@@ -178,6 +178,7 @@ class MapShader extends Shader {
 }
 
 const TILE_SIZE = 10;
+const CORRIDOR_SIZE = 5;
 
 class Map {
   constructor(gl, width, height) {
@@ -218,14 +219,20 @@ class Map {
       const bCenterX = Math.floor(leafB.roomX + leafB.roomW / 2);
       const bCenterY = Math.floor(leafB.roomY + leafB.roomH / 2);
 
+      const corridorHalf = Math.floor(CORRIDOR_SIZE / 2);
+
       for (let y = aCenterY; y !== bCenterY;
         y += Math.sign(bCenterY - aCenterY)) {
-        this.grid[y * this.gridWidth + aCenterX] = 0xFF;
+        for (let x = -corridorHalf; x <= corridorHalf; x++) {
+          this.grid[y * this.gridWidth + aCenterX + x] = 0xFF;
+        }
       }
 
       for (let x = aCenterX; x !== bCenterX;
         x += Math.sign(bCenterX - aCenterX)) {
-        this.grid[bCenterY * this.gridWidth + x] = 0xFF;
+        for (let y = -corridorHalf; y <= corridorHalf; y++) {
+          this.grid[(bCenterY + y) * this.gridWidth + x] = 0xFF;
+        }
       }
     });
 
@@ -307,10 +314,10 @@ class Map {
   }
 }
 
-const PLAYER_RADIUS = 4;
+const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 10;
 const VERTEX_SIZE = 2;
-const PLAYER_SPEED = 0.1;
+const PLAYER_SPEED = 0.2;
 
 class Player {
   constructor(gl, basicShader, x, y) {
@@ -388,29 +395,33 @@ class Player {
   }
 }
 
-const LIGHT_CONE_SEGMENTS = 512;
-const LIGHT_CONE_RADIUS = 50;
+const LIGHT_CONE_SEGMENTS = 128;
+const LIGHT_CONE_RADIUS = 128;
 
 class LightCone {
-  constructor(gl, basicShader, x, y) {
+  constructor(gl, basicShader) {
     this.vertices = new Float32Array(LIGHT_CONE_SEGMENTS * 2);
 
     this.vertexBuffer = gl.createBuffer();
 
     this.shader = basicShader;
 
-    this.x = x;
-    this.y = y;
+    this.x = 0;
+    this.y = 0;
 
     this.model = new Float32Array([
       1.0, 0.0, 0.0, 0.0,
       0.0, 1.0, 0.0, 0.0,
       0.0, 0.0, 1.0, 0.0,
-      x, y, 0.0, 1.0
+      this.x, this.y, 0.0, 1.0
     ]);
   }
 
   update(deltaTime, game) {
+    if (game.player.x === this.x && game.player.y === this.y) {
+      return;
+    }
+
     this.x = game.player.x;
     this.y = game.player.y;
 
@@ -453,11 +464,17 @@ class LightCone {
   }
 }
 
+const SCREEN_WIDTH = 1280;
+const SCREEN_HEIGHT = 720;
+
 class Game {
   constructor() {
-    this.canvas = document.getElementById('canvas');
-    this.gl = this.canvas.getContext('webgl');
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = SCREEN_WIDTH;
+    this.canvas.height = SCREEN_HEIGHT;
+    document.body.appendChild(this.canvas);
 
+    this.gl = this.canvas.getContext('webgl');
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
     this.projection = new Float32Array([
@@ -478,15 +495,14 @@ class Game {
     ]);
 
     this.basicShader = new BasicShader(this.gl);
-    this.map = new Map(this.gl, this.canvas.width * 2, this.canvas.height * 2);
+    this.map = new Map(this.gl, this.canvas.width * 4, this.canvas.height * 4);
 
     const leaf = this.map.root.getRandomLeaf();
 
     this.player = new Player(this.gl, this.basicShader,
       (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
 
-    this.lightCone = new LightCone(this.gl, this.basicShader, this.player.x,
-      this.player.y);
+    this.lightCone = new LightCone(this.gl, this.basicShader);
 
     this.up = false;
     this.down = false;

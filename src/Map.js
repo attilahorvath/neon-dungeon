@@ -2,6 +2,7 @@ import MapNode from './MapNode';
 import MapShader from './MapShader';
 
 const TILE_SIZE = 10;
+const CORRIDOR_SIZE = 5;
 
 export default class Map {
   constructor(gl, width, height) {
@@ -42,14 +43,20 @@ export default class Map {
       const bCenterX = Math.floor(leafB.roomX + leafB.roomW / 2);
       const bCenterY = Math.floor(leafB.roomY + leafB.roomH / 2);
 
+      const corridorHalf = Math.floor(CORRIDOR_SIZE / 2);
+
       for (let y = aCenterY; y !== bCenterY;
         y += Math.sign(bCenterY - aCenterY)) {
-        this.grid[y * this.gridWidth + aCenterX] = 0xFF;
+        for (let x = -corridorHalf; x <= corridorHalf; x++) {
+          this.grid[y * this.gridWidth + aCenterX + x] = 0xFF;
+        }
       }
 
       for (let x = aCenterX; x !== bCenterX;
         x += Math.sign(bCenterX - aCenterX)) {
-        this.grid[bCenterY * this.gridWidth + x] = 0xFF;
+        for (let y = -corridorHalf; y <= corridorHalf; y++) {
+          this.grid[(bCenterY + y) * this.gridWidth + x] = 0xFF;
+        }
       }
     });
 

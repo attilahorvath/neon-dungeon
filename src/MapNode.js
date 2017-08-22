@@ -1,6 +1,6 @@
-const MIN_SIZE = 5;
+const MIN_SIZE = 16;
 const MIN_ROOM_OFFSET = 1;
-const MIN_ROOM_SIZE = 3;
+const MIN_ROOM_SIZE = 10;
 
 export default class MapNode {
   constructor(x, y, w, h) {

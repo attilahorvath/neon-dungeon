@@ -1,7 +1,7 @@
-const PLAYER_RADIUS = 4;
+const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 10;
 const VERTEX_SIZE = 2;
-const PLAYER_SPEED = 0.1;
+const PLAYER_SPEED = 0.2;
 
 export default class Player {
   constructor(gl, basicShader, x, y) {

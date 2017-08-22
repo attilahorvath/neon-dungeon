@@ -3,11 +3,17 @@ import Map from './Map';
 import Player from './Player';
 import LightCone from './LightCone';
 
+const SCREEN_WIDTH = 1280;
+const SCREEN_HEIGHT = 720;
+
 export default class Game {
   constructor() {
-    this.canvas = document.getElementById('canvas');
-    this.gl = this.canvas.getContext('webgl');
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = SCREEN_WIDTH;
+    this.canvas.height = SCREEN_HEIGHT;
+    document.body.appendChild(this.canvas);
 
+    this.gl = this.canvas.getContext('webgl');
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
     this.projection = new Float32Array([
@@ -28,15 +34,14 @@ export default class Game {
     ]);
 
     this.basicShader = new BasicShader(this.gl);
-    this.map = new Map(this.gl, this.canvas.width * 2, this.canvas.height * 2);
+    this.map = new Map(this.gl, this.canvas.width * 4, this.canvas.height * 4);
 
     const leaf = this.map.root.getRandomLeaf();
 
     this.player = new Player(this.gl, this.basicShader,
       (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
 
-    this.lightCone = new LightCone(this.gl, this.basicShader, this.player.x,
-      this.player.y);
+    this.lightCone = new LightCone(this.gl, this.basicShader);
 
     this.up = false;
     this.down = false;

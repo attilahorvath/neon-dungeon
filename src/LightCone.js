@@ -1,26 +1,30 @@
-const LIGHT_CONE_SEGMENTS = 512;
-const LIGHT_CONE_RADIUS = 50;
+const LIGHT_CONE_SEGMENTS = 128;
+const LIGHT_CONE_RADIUS = 128;
 
 export default class LightCone {
-  constructor(gl, basicShader, x, y) {
+  constructor(gl, basicShader) {
     this.vertices = new Float32Array(LIGHT_CONE_SEGMENTS * 2);
 
     this.vertexBuffer = gl.createBuffer();
 
     this.shader = basicShader;
 
-    this.x = x;
-    this.y = y;
+    this.x = 0;
+    this.y = 0;
 
     this.model = new Float32Array([
       1.0, 0.0, 0.0, 0.0,
       0.0, 1.0, 0.0, 0.0,
       0.0, 0.0, 1.0, 0.0,
-      x, y, 0.0, 1.0
+      this.x, this.y, 0.0, 1.0
     ]);
   }
 
   update(deltaTime, game) {
+    if (game.player.x === this.x && game.player.y === this.y) {
+      return;
+    }
+
     this.x = game.player.x;
     this.y = game.player.y;
 
