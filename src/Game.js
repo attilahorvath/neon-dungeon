@@ -1,6 +1,7 @@
 import BasicShader from './BasicShader';
 import Map from './Map';
 import Player from './Player';
+import LightCone from './LightCone';
 
 export default class Game {
   constructor() {
@@ -34,6 +35,9 @@ export default class Game {
     this.player = new Player(this.gl, this.basicShader,
       (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
 
+    this.lightCone = new LightCone(this.gl, this.basicShader, this.player.x,
+      this.player.y);
+
     this.up = false;
     this.down = false;
     this.left = false;
@@ -46,6 +50,7 @@ export default class Game {
     const deltaTime = timestamp - this.lastTimestamp;
 
     this.player.update(deltaTime, this);
+    this.lightCone.update(deltaTime, this);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -59,6 +64,7 @@ export default class Game {
   draw() {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view);
+    this.lightCone.draw(this.gl, this.projection, this.view);
     this.player.draw(this.gl, this.projection, this.view);
   }
 }

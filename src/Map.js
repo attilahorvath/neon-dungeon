@@ -93,4 +93,40 @@ export default class Map {
       Math.floor(x / TILE_SIZE);
     return this.grid[tile];
   }
+
+  getWallDistance(x, y, dirX, dirY) {
+    dirX = dirX === 0 ? 0.00001 : dirX;
+    dirY = dirY === 0 ? 0.00001 : dirY;
+
+    let tileX = 0;
+    let tileY = 0;
+    let offset = 0;
+
+    do {
+      tileX = Math.floor((x + dirX * offset) / TILE_SIZE) * TILE_SIZE;
+      tileY = Math.floor((y + dirY * offset) / TILE_SIZE) * TILE_SIZE;
+      offset += TILE_SIZE / 2;
+    } while (this.tileAt(tileX, tileY) !== 0 && offset < 1000);
+
+    let ix = 0;
+    let iy = 0;
+
+    let distTop = (tileY - y) / dirY;
+    ix = x + dirX * distTop;
+    distTop = (ix >= tileX && ix <= tileX + TILE_SIZE) ? distTop : 1000;
+
+    let distBottom = (tileY + TILE_SIZE - y) / dirY;
+    ix = x + dirX * distBottom;
+    distBottom = (ix >= tileX && ix <= tileX + TILE_SIZE) ? distBottom : 1000;
+
+    let distLeft = (tileX - x) / dirX;
+    iy = y + dirY * distLeft;
+    distLeft = (iy >= tileY && iy <= tileY + TILE_SIZE) ? distLeft : 1000;
+
+    let distRight = (tileX + TILE_SIZE - x) / dirX;
+    iy = y + dirY * distRight;
+    distRight = (iy >= tileY && iy <= tileY + TILE_SIZE) ? distRight : 1000;
+
+    return Math.min(distTop, distBottom, distLeft, distRight);
+  }
 }

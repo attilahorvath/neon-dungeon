@@ -269,6 +269,42 @@ class Map {
       Math.floor(x / TILE_SIZE);
     return this.grid[tile];
   }
+
+  getWallDistance(x, y, dirX, dirY) {
+    dirX = dirX === 0 ? 0.00001 : dirX;
+    dirY = dirY === 0 ? 0.00001 : dirY;
+
+    let tileX = 0;
+    let tileY = 0;
+    let offset = 0;
+
+    do {
+      tileX = Math.floor((x + dirX * offset) / TILE_SIZE) * TILE_SIZE;
+      tileY = Math.floor((y + dirY * offset) / TILE_SIZE) * TILE_SIZE;
+      offset += TILE_SIZE / 2;
+    } while (this.tileAt(tileX, tileY) !== 0 && offset < 1000);
+
+    let ix = 0;
+    let iy = 0;
+
+    let distTop = (tileY - y) / dirY;
+    ix = x + dirX * distTop;
+    distTop = (ix >= tileX && ix <= tileX + TILE_SIZE) ? distTop : 1000;
+
+    let distBottom = (tileY + TILE_SIZE - y) / dirY;
+    ix = x + dirX * distBottom;
+    distBottom = (ix >= tileX && ix <= tileX + TILE_SIZE) ? distBottom : 1000;
+
+    let distLeft = (tileX - x) / dirX;
+    iy = y + dirY * distLeft;
+    distLeft = (iy >= tileY && iy <= tileY + TILE_SIZE) ? distLeft : 1000;
+
+    let distRight = (tileX + TILE_SIZE - x) / dirX;
+    iy = y + dirY * distRight;
+    distRight = (iy >= tileY && iy <= tileY + TILE_SIZE) ? distRight : 1000;
+
+    return Math.min(distTop, distBottom, distLeft, distRight);
+  }
 }
 
 const PLAYER_RADIUS = 4;
@@ -352,6 +388,68 @@ class Player {
   }
 }
 
+const LIGHT_CONE_SEGMENTS = 512;
+
+class LightCone {
+  constructor(gl, basicShader, x, y) {
+    this.vertices = new Float32Array(LIGHT_CONE_SEGMENTS * 2);
+
+    this.vertexBuffer = gl.createBuffer();
+
+    this.shader = basicShader;
+
+    this.x = x;
+    this.y = y;
+
+    this.model = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      x, y, 0.0, 1.0
+    ]);
+  }
+
+  update(deltaTime, game) {
+    this.x = game.player.x;
+    this.y = game.player.y;
+
+    this.model[12] = this.x;
+    this.model[13] = this.y;
+
+    let vertexIndex = 2;
+
+    for (let i = 0; i < LIGHT_CONE_SEGMENTS - 1; i++) {
+      const angle = ((Math.PI * 2.0) / (LIGHT_CONE_SEGMENTS - 2)) * i;
+
+      const dirX = Math.cos(angle);
+      const dirY = Math.sin(angle);
+
+      const distance = game.map.getWallDistance(this.x, this.y, dirX, dirY);
+
+      this.vertices[vertexIndex++] = dirX * distance;
+      this.vertices[vertexIndex++] = dirY * distance;
+    }
+
+    const gl = game.gl;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+  }
+
+  draw(gl, projection, view) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+
+    this.shader.use(gl);
+
+    gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, view);
+    gl.uniformMatrix4fv(this.shader.model, false, this.model);
+    gl.uniform4f(this.shader.color, 0.4, 0.4, 0.0, 1.0);
+
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, LIGHT_CONE_SEGMENTS);
+  }
+}
+
 class Game {
   constructor() {
     this.canvas = document.getElementById('canvas');
@@ -384,6 +482,9 @@ class Game {
     this.player = new Player(this.gl, this.basicShader,
       (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
 
+    this.lightCone = new LightCone(this.gl, this.basicShader, this.player.x,
+      this.player.y);
+
     this.up = false;
     this.down = false;
     this.left = false;
@@ -396,6 +497,7 @@ class Game {
     const deltaTime = timestamp - this.lastTimestamp;
 
     this.player.update(deltaTime, this);
+    this.lightCone.update(deltaTime, this);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -409,6 +511,7 @@ class Game {
   draw() {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view);
+    this.lightCone.draw(this.gl, this.projection, this.view);
     this.player.draw(this.gl, this.projection, this.view);
   }
 }
