@@ -105,7 +105,7 @@ export default class Map {
     do {
       tileX = Math.floor((x + dirX * offset) / TILE_SIZE) * TILE_SIZE;
       tileY = Math.floor((y + dirY * offset) / TILE_SIZE) * TILE_SIZE;
-      offset += TILE_SIZE / 2;
+      offset += TILE_SIZE / 10;
     } while (this.tileAt(tileX, tileY) !== 0 && offset < 1000);
 
     let ix = 0;

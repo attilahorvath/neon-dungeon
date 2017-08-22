@@ -1,4 +1,5 @@
 const LIGHT_CONE_SEGMENTS = 512;
+const LIGHT_CONE_RADIUS = 50;
 
 export default class LightCone {
   constructor(gl, basicShader, x, y) {
@@ -34,7 +35,9 @@ export default class LightCone {
       const dirX = Math.cos(angle);
       const dirY = Math.sin(angle);
 
-      const distance = game.map.getWallDistance(this.x, this.y, dirX, dirY);
+      const distance = Math.min(
+        game.map.getWallDistance(this.x, this.y, dirX, dirY),
+        LIGHT_CONE_RADIUS);
 
       this.vertices[vertexIndex++] = dirX * distance;
       this.vertices[vertexIndex++] = dirY * distance;
@@ -54,7 +57,7 @@ export default class LightCone {
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 0.4, 0.4, 0.0, 1.0);
+    gl.uniform4f(this.shader.color, 1.0, 1.0, 0.0, 1.0);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, LIGHT_CONE_SEGMENTS);
   }
