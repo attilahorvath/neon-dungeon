@@ -4,7 +4,8 @@ import Shader from './Shader';
 
 export default class MapShader extends Shader {
   constructor(gl) {
-    const uniforms = ['projection', 'view', 'sampler', 'color', 'quadSize'];
+    const uniforms = ['projection', 'view', 'sampler', 'wallColor',
+      'roomColor', 'quadSize'];
     const attributes = ['vertexPosition', 'vertexTexCoord'];
 
     super(gl, vertexShaderSource, fragmentShaderSource, uniforms, attributes,

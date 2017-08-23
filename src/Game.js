@@ -17,6 +17,7 @@ export default class Game {
 
     this.gl = this.canvas.getContext('webgl');
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    this.gl.enable(this.gl.BLEND);
 
     this.projection = new Float32Array([
       2.0 / (this.canvas.width - 1.0), 0.0, 0.0, 0.0,
@@ -83,15 +84,19 @@ export default class Game {
   }
 
   draw() {
+    this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
+
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
       this.postProcessor.framebuffer);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.map.draw(this.gl, this.projection, this.view);
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.postProcessor.draw(this.gl);
-    this.lightCone.draw(this.gl, this.projection, this.view);
+    this.map.draw(this.gl, this.projection, this.view, true);
     this.player.draw(this.gl, this.projection, this.view);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.map.draw(this.gl, this.projection, this.view, false);
+    this.lightCone.draw(this.gl, this.projection, this.view);
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    this.postProcessor.draw(this.gl);
   }
 }

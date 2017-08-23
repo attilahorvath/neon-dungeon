@@ -204,11 +204,12 @@ class MapNode {
 
 var vertexShaderSource$1 = "uniform mediump mat4 projection;uniform mediump mat4 view;attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=projection*view*vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
 
-var fragmentShaderSource$1 = "precision highp float;const float tolerance=0.2;uniform sampler2D sampler;uniform mediump vec4 color;uniform mediump vec2 quadSize;varying highp vec2 texCoord;void main(){float left=step(tolerance,texture2D(sampler,vec2(texCoord.x-1.0/quadSize.x,texCoord.y)).a);float right=step(tolerance,texture2D(sampler,vec2(texCoord.x+1.0/quadSize.x,texCoord.y)).a);float top=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y-1.0/quadSize.y)).a);float bottom=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y+1.0/quadSize.y)).a);float current=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y)).a);float p=((1.0-left)+(1.0-right)+(1.0-top)+(1.0-bottom))*current;gl_FragColor=color*p;}";
+var fragmentShaderSource$1 = "precision highp float;const float tolerance=0.2;uniform sampler2D sampler;uniform mediump vec4 wallColor;uniform mediump vec4 roomColor;uniform mediump vec2 quadSize;varying highp vec2 texCoord;void main(){vec2 quadStep=1.0/quadSize;float neighbors=0.0;neighbors+=1.0-step(tolerance,texture2D(sampler,vec2(texCoord.x-quadStep.x,texCoord.y)).a);neighbors+=1.0-step(tolerance,texture2D(sampler,vec2(texCoord.x+quadStep.x,texCoord.y)).a);neighbors+=1.0-step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y-quadStep.y)).a);neighbors+=1.0-step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y+quadStep.y)).a);float current=step(tolerance,texture2D(sampler,vec2(texCoord.x,texCoord.y)).a);float wall=neighbors*current;gl_FragColor=wallColor*wall+roomColor*current;}";
 
 class MapShader extends Shader {
   constructor(gl) {
-    const uniforms = ['projection', 'view', 'sampler', 'color', 'quadSize'];
+    const uniforms = ['projection', 'view', 'sampler', 'wallColor',
+      'roomColor', 'quadSize'];
     const attributes = ['vertexPosition', 'vertexTexCoord'];
 
     super(gl, vertexShaderSource$1, fragmentShaderSource$1, uniforms, attributes,
@@ -302,7 +303,7 @@ class Map {
     this.shader = new MapShader(gl);
   }
 
-  draw(gl, projection, view) {
+  draw(gl, projection, view, wallsOnly) {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 
@@ -310,7 +311,15 @@ class Map {
 
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
-    gl.uniform4f(this.shader.color, 0.0, 0.0, 1.0, 1.0);
+
+    if (wallsOnly) {
+      gl.uniform4f(this.shader.wallColor, 0.0, 0.0, 1.0, 1.0);
+      gl.uniform4f(this.shader.roomColor, 0.0, 0.0, 0.0, 0.0);
+    } else {
+      gl.uniform4f(this.shader.wallColor, 0.0, 0.0, 0.0, 0.0);
+      gl.uniform4f(this.shader.roomColor, 0.15, 0.15, 0.15, 1.0);
+    }
+
     gl.uniform1i(this.shader.sampler, 0);
     gl.uniform2f(this.shader.quadSize, this.width, this.height);
 
@@ -606,6 +615,7 @@ class Game {
 
     this.gl = this.canvas.getContext('webgl');
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    this.gl.enable(this.gl.BLEND);
 
     this.projection = new Float32Array([
       2.0 / (this.canvas.width - 1.0), 0.0, 0.0, 0.0,
@@ -672,16 +682,20 @@ class Game {
   }
 
   draw() {
+    this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
+
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
       this.postProcessor.framebuffer);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.map.draw(this.gl, this.projection, this.view);
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
-
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.postProcessor.draw(this.gl);
-    this.lightCone.draw(this.gl, this.projection, this.view);
+    this.map.draw(this.gl, this.projection, this.view, true);
     this.player.draw(this.gl, this.projection, this.view);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.map.draw(this.gl, this.projection, this.view, false);
+    this.lightCone.draw(this.gl, this.projection, this.view);
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    this.postProcessor.draw(this.gl);
   }
 }
 

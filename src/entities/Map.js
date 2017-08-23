@@ -80,7 +80,7 @@ export default class Map {
     this.shader = new MapShader(gl);
   }
 
-  draw(gl, projection, view) {
+  draw(gl, projection, view, wallsOnly) {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 
@@ -88,7 +88,15 @@ export default class Map {
 
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
-    gl.uniform4f(this.shader.color, 0.0, 0.0, 1.0, 1.0);
+
+    if (wallsOnly) {
+      gl.uniform4f(this.shader.wallColor, 0.0, 0.0, 1.0, 1.0);
+      gl.uniform4f(this.shader.roomColor, 0.0, 0.0, 0.0, 0.0);
+    } else {
+      gl.uniform4f(this.shader.wallColor, 0.0, 0.0, 0.0, 0.0);
+      gl.uniform4f(this.shader.roomColor, 0.15, 0.15, 0.15, 1.0);
+    }
+
     gl.uniform1i(this.shader.sampler, 0);
     gl.uniform2f(this.shader.quadSize, this.width, this.height);
 
