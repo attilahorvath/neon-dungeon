@@ -1,6 +1,6 @@
 export default class Shader {
   constructor(gl, vertexShaderSource, fragmentShaderSource, uniforms,
-    attributes) {
+    attributes, vertexSize) {
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
     gl.shaderSource(vertexShader, vertexShaderSource);
     gl.compileShader(vertexShader);
@@ -23,6 +23,8 @@ export default class Shader {
     for (const attribute of this.attributes) {
       this[attribute] = gl.getAttribLocation(this.program, attribute);
     }
+
+    this.vertexSize = vertexSize;
   }
 
   use(gl) {

@@ -1,7 +1,7 @@
-import BasicShader from './BasicShader';
-import Map from './Map';
-import Player from './Player';
-import LightCone from './LightCone';
+import BasicShader from './shaders/BasicShader';
+import Map from './entities/Map';
+import Player from './entities/Player';
+import LightCone from './entities/LightCone';
 
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;

@@ -3,7 +3,8 @@ const LIGHT_CONE_RADIUS = 128;
 
 export default class LightCone {
   constructor(gl, basicShader) {
-    this.vertices = new Float32Array(LIGHT_CONE_SEGMENTS * 2);
+    this.vertices = new Float32Array(LIGHT_CONE_SEGMENTS *
+      basicShader.vertexSize);
 
     this.vertexBuffer = gl.createBuffer();
 

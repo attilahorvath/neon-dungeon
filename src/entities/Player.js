@@ -1,11 +1,10 @@
 const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 10;
-const VERTEX_SIZE = 2;
 const PLAYER_SPEED = 0.2;
 
 export default class Player {
   constructor(gl, basicShader, x, y) {
-    const vertices = new Float32Array(PLAYER_SEGMENTS * VERTEX_SIZE);
+    const vertices = new Float32Array(PLAYER_SEGMENTS * basicShader.vertexSize);
 
     let vertexIndex = 0;
 

@@ -1,5 +1,5 @@
 import MapNode from './MapNode';
-import MapShader from './MapShader';
+import MapShader from '../shaders/MapShader';
 
 const TILE_SIZE = 10;
 const CORRIDOR_SIZE = 5;

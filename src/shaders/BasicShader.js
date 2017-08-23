@@ -1,5 +1,5 @@
-import vertexShaderSource from '../shaders/basic.vert';
-import fragmentShaderSource from '../shaders/basic.frag';
+import vertexShaderSource from '../../shaders/basic.vert';
+import fragmentShaderSource from '../../shaders/basic.frag';
 import Shader from './Shader';
 
 export default class BasicShader extends Shader {
@@ -7,7 +7,8 @@ export default class BasicShader extends Shader {
     const uniforms = ['projection', 'view', 'model', 'color'];
     const attributes = ['vertexPosition'];
 
-    super(gl, vertexShaderSource, fragmentShaderSource, uniforms, attributes);
+    super(gl, vertexShaderSource, fragmentShaderSource, uniforms, attributes,
+      2);
   }
 
   use(gl) {

@@ -7,7 +7,7 @@ var fragmentShaderSource = "uniform mediump vec4 color;void main(){gl_FragColor=
 
 class Shader {
   constructor(gl, vertexShaderSource, fragmentShaderSource, uniforms,
-    attributes) {
+    attributes, vertexSize) {
     const vertexShader = gl.createShader(gl.VERTEX_SHADER);
     gl.shaderSource(vertexShader, vertexShaderSource);
     gl.compileShader(vertexShader);
@@ -30,6 +30,8 @@ class Shader {
     for (const attribute of this.attributes) {
       this[attribute] = gl.getAttribLocation(this.program, attribute);
     }
+
+    this.vertexSize = vertexSize;
   }
 
   use(gl) {
@@ -46,7 +48,8 @@ class BasicShader extends Shader {
     const uniforms = ['projection', 'view', 'model', 'color'];
     const attributes = ['vertexPosition'];
 
-    super(gl, vertexShaderSource, fragmentShaderSource, uniforms, attributes);
+    super(gl, vertexShaderSource, fragmentShaderSource, uniforms, attributes,
+      2);
   }
 
   use(gl) {
@@ -166,7 +169,8 @@ class MapShader extends Shader {
     const uniforms = ['projection', 'view', 'sampler', 'color', 'quadSize'];
     const attributes = ['vertexPosition', 'vertexTexCoord'];
 
-    super(gl, vertexShaderSource$1, fragmentShaderSource$1, uniforms, attributes);
+    super(gl, vertexShaderSource$1, fragmentShaderSource$1, uniforms, attributes,
+      4);
   }
 
   use(gl) {
@@ -316,12 +320,11 @@ class Map {
 
 const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 10;
-const VERTEX_SIZE = 2;
 const PLAYER_SPEED = 0.2;
 
 class Player {
   constructor(gl, basicShader, x, y) {
-    const vertices = new Float32Array(PLAYER_SEGMENTS * VERTEX_SIZE);
+    const vertices = new Float32Array(PLAYER_SEGMENTS * basicShader.vertexSize);
 
     let vertexIndex = 0;
 
@@ -400,7 +403,8 @@ const LIGHT_CONE_RADIUS = 128;
 
 class LightCone {
   constructor(gl, basicShader) {
-    this.vertices = new Float32Array(LIGHT_CONE_SEGMENTS * 2);
+    this.vertices = new Float32Array(LIGHT_CONE_SEGMENTS *
+      basicShader.vertexSize);
 
     this.vertexBuffer = gl.createBuffer();
 
