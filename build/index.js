@@ -453,7 +453,7 @@ class Player {
   }
 }
 
-const LIGHT_CONE_SEGMENTS = 128;
+const LIGHT_CONE_SEGMENTS = 256;
 const LIGHT_CONE_RADIUS = 128;
 
 class LightCone {
