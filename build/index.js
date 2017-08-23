@@ -555,6 +555,9 @@ class Game {
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
     this.lastTimestamp = performance.now();
+
+    this.frames = 0;
+    this.frameTimer = 0;
   }
 
   update(timestamp) {
@@ -572,6 +575,15 @@ class Game {
     this.view[13] = -this.cameraY;
 
     this.lastTimestamp = timestamp;
+
+    this.frames++;
+    this.frameTimer += deltaTime;
+
+    if (this.frameTimer > 1000) {
+      console.log(`FPS: ${this.frames}`);
+      this.frames = 0;
+      this.frameTimer -= 1000;
+    }
   }
 
   draw() {
