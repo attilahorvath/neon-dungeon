@@ -1,6 +1,48 @@
 (function () {
 'use strict';
 
+class Input {
+  constructor() {
+    this.UP = 1;
+    this.DOWN = 2;
+    this.LEFT = 4;
+    this.RIGHT = 8;
+
+    this.pressed = 0;
+    this.lastPressed = 0;
+
+    this.justPressed = 0;
+    this.justReleased = 0;
+  }
+
+  press(key) {
+    this.pressed |= key;
+  }
+
+  release(key) {
+    this.pressed &= ~key;
+  }
+
+  isPressed(key) {
+    return (this.pressed & key) === key;
+  }
+
+  wasJustPressed(key) {
+    return (this.justPressed & key) === key;
+  }
+
+  wasJustReleased(key) {
+    return (this.justReleased & key) === key;
+  }
+
+  update() {
+    this.justPressed = this.pressed & ~this.lastPressed;
+    this.justReleased = this.lastPressed & ~this.pressed;
+
+    this.lastPressed = this.pressed;
+  }
+}
+
 var vertexShaderSource = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump mat4 model;attribute vec2 vertexPosition;void main(){gl_Position=projection*view*model*vec4(vertexPosition,0.0,1.0);}";
 
 var fragmentShaderSource = "uniform mediump vec4 color;void main(){gl_FragColor=color;}";
@@ -362,8 +404,10 @@ class Player {
   update(deltaTime, game) {
     const distance = deltaTime * PLAYER_SPEED;
 
-    let dirX = (game.left ? -1 : 0) + (game.right ? 1 : 0);
-    let dirY = (game.up ? -1 : 0) + (game.down ? 1 : 0);
+    let dirX = (game.input.isPressed(game.input.LEFT) ? -1 : 0) +
+      (game.input.isPressed(game.input.RIGHT) ? 1 : 0);
+    let dirY = (game.input.isPressed(game.input.UP) ? -1 : 0) +
+      (game.input.isPressed(game.input.DOWN) ? 1 : 0);
 
     if (dirX !== 0 && dirY !== 0) {
       dirX *= Math.SQRT2 / 2.0;
@@ -498,6 +542,8 @@ class Game {
       -this.cameraX, -this.cameraY, 0.0, 1.0
     ]);
 
+    this.input = new Input();
+
     this.basicShader = new BasicShader(this.gl);
     this.map = new Map(this.gl, this.canvas.width * 4, this.canvas.height * 4);
 
@@ -508,16 +554,13 @@ class Game {
 
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
-    this.up = false;
-    this.down = false;
-    this.left = false;
-    this.right = false;
-
     this.lastTimestamp = performance.now();
   }
 
   update(timestamp) {
     const deltaTime = timestamp - this.lastTimestamp;
+
+    this.input.update();
 
     this.player.update(deltaTime, this);
     this.lightCone.update(deltaTime, this);
@@ -551,16 +594,16 @@ const updateGame = timestamp => {
 addEventListener('keydown', event => {
   switch (event.keyCode) {
   case 38: case 87: case 75:
-    game.up = true;
+    game.input.press(game.input.UP);
     break;
   case 40: case 83: case 74:
-    game.down = true;
+    game.input.press(game.input.DOWN);
     break;
   case 37: case 65: case 72:
-    game.left = true;
+    game.input.press(game.input.LEFT);
     break;
   case 39: case 68: case 76:
-    game.right = true;
+    game.input.press(game.input.RIGHT);
     break;
   }
 });
@@ -568,16 +611,16 @@ addEventListener('keydown', event => {
 addEventListener('keyup', event => {
   switch (event.keyCode) {
   case 38: case 87: case 75:
-    game.up = false;
+    game.input.release(game.input.UP);
     break;
   case 40: case 83: case 74:
-    game.down = false;
+    game.input.release(game.input.DOWN);
     break;
   case 37: case 65: case 72:
-    game.left = false;
+    game.input.release(game.input.LEFT);
     break;
   case 39: case 68: case 76:
-    game.right = false;
+    game.input.release(game.input.RIGHT);
     break;
   }
 });

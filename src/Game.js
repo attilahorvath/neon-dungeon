@@ -1,3 +1,4 @@
+import Input from './Input';
 import BasicShader from './shaders/BasicShader';
 import Map from './entities/Map';
 import Player from './entities/Player';
@@ -33,6 +34,8 @@ export default class Game {
       -this.cameraX, -this.cameraY, 0.0, 1.0
     ]);
 
+    this.input = new Input();
+
     this.basicShader = new BasicShader(this.gl);
     this.map = new Map(this.gl, this.canvas.width * 4, this.canvas.height * 4);
 
@@ -43,16 +46,13 @@ export default class Game {
 
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
-    this.up = false;
-    this.down = false;
-    this.left = false;
-    this.right = false;
-
     this.lastTimestamp = performance.now();
   }
 
   update(timestamp) {
     const deltaTime = timestamp - this.lastTimestamp;
+
+    this.input.update();
 
     this.player.update(deltaTime, this);
     this.lightCone.update(deltaTime, this);

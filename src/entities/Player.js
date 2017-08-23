@@ -42,8 +42,10 @@ export default class Player {
   update(deltaTime, game) {
     const distance = deltaTime * PLAYER_SPEED;
 
-    let dirX = (game.left ? -1 : 0) + (game.right ? 1 : 0);
-    let dirY = (game.up ? -1 : 0) + (game.down ? 1 : 0);
+    let dirX = (game.input.isPressed(game.input.LEFT) ? -1 : 0) +
+      (game.input.isPressed(game.input.RIGHT) ? 1 : 0);
+    let dirY = (game.input.isPressed(game.input.UP) ? -1 : 0) +
+      (game.input.isPressed(game.input.DOWN) ? 1 : 0);
 
     if (dirX !== 0 && dirY !== 0) {
       dirX *= Math.SQRT2 / 2.0;

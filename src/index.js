@@ -12,16 +12,16 @@ const updateGame = timestamp => {
 addEventListener('keydown', event => {
   switch (event.keyCode) {
   case 38: case 87: case 75:
-    game.up = true;
+    game.input.press(game.input.UP);
     break;
   case 40: case 83: case 74:
-    game.down = true;
+    game.input.press(game.input.DOWN);
     break;
   case 37: case 65: case 72:
-    game.left = true;
+    game.input.press(game.input.LEFT);
     break;
   case 39: case 68: case 76:
-    game.right = true;
+    game.input.press(game.input.RIGHT);
     break;
   }
 });
@@ -29,16 +29,16 @@ addEventListener('keydown', event => {
 addEventListener('keyup', event => {
   switch (event.keyCode) {
   case 38: case 87: case 75:
-    game.up = false;
+    game.input.release(game.input.UP);
     break;
   case 40: case 83: case 74:
-    game.down = false;
+    game.input.release(game.input.DOWN);
     break;
   case 37: case 65: case 72:
-    game.left = false;
+    game.input.release(game.input.LEFT);
     break;
   case 39: case 68: case 76:
-    game.right = false;
+    game.input.release(game.input.RIGHT);
     break;
   }
 });
