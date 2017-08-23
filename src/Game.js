@@ -3,6 +3,7 @@ import BasicShader from './shaders/BasicShader';
 import Map from './entities/Map';
 import Player from './entities/Player';
 import LightCone from './entities/LightCone';
+import PostProcessor from './PostProcessor';
 
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
@@ -46,6 +47,9 @@ export default class Game {
 
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
+    this.postProcessor = new PostProcessor(this.gl, this.canvas.width,
+      this.canvas.height);
+
     this.lastTimestamp = performance.now();
 
     this.frames = 0;
@@ -79,8 +83,14 @@ export default class Game {
   }
 
   draw() {
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.framebuffer);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view);
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl);
     this.lightCone.draw(this.gl, this.projection, this.view);
     this.player.draw(this.gl, this.projection, this.view);
   }

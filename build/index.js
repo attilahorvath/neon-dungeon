@@ -314,6 +314,8 @@ class Map {
     gl.uniform1i(this.shader.sampler, 0);
     gl.uniform2f(this.shader.quadSize, this.width, this.height);
 
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
   }
 
@@ -512,6 +514,86 @@ class LightCone {
   }
 }
 
+var vertexShaderSource$2 = "attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+
+var fragmentShaderSource$2 = "precision highp float;uniform sampler2D sampler;uniform vec2 texSize;varying highp vec2 texCoord;void main(){vec2 texStep=1.0/texSize;vec4 color=vec4(0.0);color+=texture2D(sampler,vec2(texCoord.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x-texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x+texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y-texStep.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y+texStep.y));gl_FragColor=color;}";
+
+class BlueShader extends Shader {
+  constructor(gl) {
+    const uniforms = ['sampler', 'texSize'];
+    const attributes = ['vertexPosition', 'vertexTexCoord'];
+
+    super(gl, vertexShaderSource$2, fragmentShaderSource$2, uniforms, attributes,
+      4);
+  }
+
+  use(gl) {
+    super.use(gl);
+
+    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 16, 0);
+    gl.vertexAttribPointer(this.vertexTexCoord, 2, gl.FLOAT, false, 16, 8);
+  }
+}
+
+class PostProcessor {
+  constructor(gl, width, height) {
+    this.width = width;
+    this.height = height;
+
+    const vertices = new Float32Array([
+      -1.0, 1.0, 0.0, 1.0,
+      1.0, 1.0, 1.0, 1.0,
+      -1.0, -1.0, 0.0, 0.0,
+      1.0, -1.0, 1.0, 0.0
+    ]);
+
+    const indices = new Uint16Array([
+      0, 2, 1,
+      1, 2, 3
+    ]);
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+    this.texture = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0,
+      gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    this.framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D, this.texture, 0);
+
+    this.shader = new BlueShader(gl);
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
+  }
+
+  draw(gl) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
+    this.shader.use(gl);
+
+    gl.uniform1i(this.shader.sampler, 0);
+    gl.uniform2f(this.shader.texSize, this.width, this.height);
+
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+  }
+}
+
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
 
@@ -554,6 +636,9 @@ class Game {
 
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
+    this.postProcessor = new PostProcessor(this.gl, this.canvas.width,
+      this.canvas.height);
+
     this.lastTimestamp = performance.now();
 
     this.frames = 0;
@@ -587,8 +672,14 @@ class Game {
   }
 
   draw() {
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.framebuffer);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view);
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl);
     this.lightCone.draw(this.gl, this.projection, this.view);
     this.player.draw(this.gl, this.projection, this.view);
   }

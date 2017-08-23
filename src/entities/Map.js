@@ -92,6 +92,8 @@ export default class Map {
     gl.uniform1i(this.shader.sampler, 0);
     gl.uniform2f(this.shader.quadSize, this.width, this.height);
 
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
   }
 
