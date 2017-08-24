@@ -3,6 +3,7 @@ import BasicShader from './shaders/BasicShader';
 import Map from './entities/Map';
 import Player from './entities/Player';
 import LightCone from './entities/LightCone';
+import Snake from './entities/enemies/Snake';
 import PostProcessor from './PostProcessor';
 
 const SCREEN_WIDTH = 1280;
@@ -46,6 +47,9 @@ export default class Game {
     this.player = new Player(this.gl, this.basicShader,
       (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
 
+    this.snake = new Snake(this.gl, this.basicShader,
+      (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
+
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
     this.postProcessor = new PostProcessor(this.gl, this.canvas.width,
@@ -64,6 +68,7 @@ export default class Game {
 
     this.player.update(deltaTime, this);
     this.lightCone.update(deltaTime, this);
+    this.snake.update(deltaTime, this);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -91,6 +96,7 @@ export default class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, true);
     this.player.draw(this.gl, this.projection, this.view);
+    this.snake.draw(this.gl, this.projection, this.view);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);

@@ -523,6 +523,87 @@ class LightCone {
   }
 }
 
+const SNAKE_SEGMENTS = 20;
+const SNAKE_MIN_WIDTH = 25;
+const SNAKE_MAX_WIDTH = 40;
+const SNAKE_HEIGHT = 10;
+const SNAKE_SPEED = 0.02;
+
+class Snake {
+  constructor(gl, basicShader, x, y) {
+    this.vertices = new Float32Array(SNAKE_SEGMENTS * basicShader.vertexSize);
+
+    this.vertexBuffer = gl.createBuffer();
+
+    this.shader = basicShader;
+
+    this.x = x;
+    this.y = y;
+
+    this.angle = Math.random() * 2.0 * Math.PI;
+
+    this.model = new Float32Array([
+      Math.cos(this.angle), Math.sin(this.angle), 0.0, 0.0,
+      -Math.sin(this.angle), Math.cos(this.angle), 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      x, y, 0.0, 1.0
+    ]);
+
+    this.width = SNAKE_MIN_WIDTH;
+    this.widthChange = 1;
+  }
+
+  update(deltaTime, game) {
+    const gl = game.gl;
+
+    this.width += this.widthChange * (deltaTime * SNAKE_SPEED);
+    if (this.width >= SNAKE_MAX_WIDTH) {
+      this.width = SNAKE_MAX_WIDTH;
+      this.widthChange = -1;
+    } else if (this.width <= SNAKE_MIN_WIDTH) {
+      this.width = SNAKE_MIN_WIDTH;
+      this.widthChange = 1;
+    }
+
+    let vertexIndex = 0;
+
+    for (let i = 0; i < SNAKE_SEGMENTS; i++) {
+      const snakeX = (this.width / SNAKE_SEGMENTS) * i - (this.width / 2.0);
+      this.vertices[vertexIndex++] = snakeX;
+      this.vertices[vertexIndex++] = Math.sin(i) * (SNAKE_HEIGHT / 2.0);
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+
+    this.x += Math.cos(this.angle) * deltaTime * SNAKE_SPEED;
+    this.y += Math.sin(this.angle) * deltaTime * SNAKE_SPEED;
+
+    // this.angle += deltaTime * 0.001;
+
+    this.model[0] = Math.cos(this.angle);
+    this.model[1] = Math.sin(this.angle);
+    this.model[4] = -Math.sin(this.angle);
+    this.model[5] = Math.cos(this.angle);
+
+    this.model[12] = this.x;
+    this.model[13] = this.y;
+  }
+
+  draw(gl, projection, view) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+
+    this.shader.use(gl);
+
+    gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, view);
+    gl.uniformMatrix4fv(this.shader.model, false, this.model);
+    gl.uniform4f(this.shader.color, 0.0, 1.0, 0.0, 1.0);
+
+    gl.drawArrays(gl.LINE_STRIP, 0, SNAKE_SEGMENTS);
+  }
+}
+
 var vertexShaderSource$2 = "attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
 
 var fragmentShaderSource$2 = "precision highp float;uniform sampler2D sampler;uniform vec2 texSize;varying highp vec2 texCoord;void main(){vec2 texStep=1.0/texSize;vec4 color=vec4(0.0);color+=texture2D(sampler,vec2(texCoord.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x-texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x+texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y-texStep.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y+texStep.y));gl_FragColor=color;}";
@@ -644,6 +725,9 @@ class Game {
     this.player = new Player(this.gl, this.basicShader,
       (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
 
+    this.snake = new Snake(this.gl, this.basicShader,
+      (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
+
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
     this.postProcessor = new PostProcessor(this.gl, this.canvas.width,
@@ -662,6 +746,7 @@ class Game {
 
     this.player.update(deltaTime, this);
     this.lightCone.update(deltaTime, this);
+    this.snake.update(deltaTime, this);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -689,6 +774,7 @@ class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, true);
     this.player.draw(this.gl, this.projection, this.view);
+    this.snake.draw(this.gl, this.projection, this.view);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
