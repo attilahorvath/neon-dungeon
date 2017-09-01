@@ -540,6 +540,7 @@ class Snake {
     this.y = y;
 
     this.angle = Math.random() * 2.0 * Math.PI;
+    this.angleChange = -0.0005 + Math.random() * 0.001;
 
     this.model = new Float32Array([
       Math.cos(this.angle), Math.sin(this.angle), 0.0, 0.0,
@@ -547,9 +548,6 @@ class Snake {
       0.0, 0.0, 1.0, 0.0,
       x, y, 0.0, 1.0
     ]);
-
-    this.width = SNAKE_WIDTH;
-    this.widthChange = 1;
 
     this.phase = 0;
   }
@@ -566,7 +564,7 @@ class Snake {
     let vertexIndex = 0;
 
     for (let i = 0; i < SNAKE_SEGMENTS; i++) {
-      const snakeX = (this.width / SNAKE_SEGMENTS) * i - (this.width / 2.0);
+      const snakeX = (SNAKE_WIDTH / SNAKE_SEGMENTS) * i - SNAKE_WIDTH;
       this.vertices[vertexIndex++] = snakeX;
       this.vertices[vertexIndex++] = Math.sin(i + this.phase) * (SNAKE_HEIGHT / 2.0);
     }
@@ -574,8 +572,21 @@ class Snake {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
 
-    this.x += Math.cos(this.angle) * deltaTime * SNAKE_SPEED;
-    this.y += Math.sin(this.angle) * deltaTime * SNAKE_SPEED;
+    const newX = this.x + Math.cos(this.angle) * deltaTime * SNAKE_SPEED;
+    const newY = this.y + Math.sin(this.angle) * deltaTime * SNAKE_SPEED;
+
+    this.angle += deltaTime * 0.0001;
+
+    if (game.map.tileAt(newX, newY) === 0xFF) {
+      this.x = newX;
+      this.y = newY;
+    } else {
+      this.angle = this.angle - Math.PI;
+      this.angleChange = -0.0005 + Math.random() * 0.001;
+
+      this.x += Math.cos(this.angle) * SNAKE_WIDTH;
+      this.y += Math.sin(this.angle) * SNAKE_WIDTH;
+    }
 
     this.model[0] = Math.cos(this.angle);
     this.model[1] = Math.sin(this.angle);
