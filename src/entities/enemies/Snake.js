@@ -25,6 +25,7 @@ export default class Snake {
     ]);
 
     this.phase = 0;
+    this.charging = false;
   }
 
   update(deltaTime, game) {
@@ -32,8 +33,8 @@ export default class Snake {
 
     this.phase += deltaTime * 0.01;
 
-    if (this.phase > Math.PI * 2) {
-      this.phase -= Math.PI * 2;
+    if (this.phase > Math.PI * 2.0) {
+      this.phase -= Math.PI * 2.0;
     }
 
     let vertexIndex = 0;
@@ -58,10 +59,25 @@ export default class Snake {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
 
-    const newX = this.x + Math.cos(this.angle) * deltaTime * SNAKE_SPEED;
-    const newY = this.y + Math.sin(this.angle) * deltaTime * SNAKE_SPEED;
+    let speed = SNAKE_SPEED;
 
-    this.angle += deltaTime * 0.0001;
+    const distX = game.player.x - this.x;
+    const distY = game.player.y - this.y;
+    const dist = Math.sqrt(distX * distX + distY * distY);
+
+    this.charging = dist > 10.0 && dist < 150.0 &&
+      game.map.getWallDistance(this.x, this.y, distX / dist, distY / dist) >=
+      dist;
+
+    if (this.charging) {
+      this.angle = Math.atan2(distY, distX);
+      speed *= 3.0;
+    } else {
+      this.angle += deltaTime * 0.0001;
+    }
+
+    const newX = this.x + Math.cos(this.angle) * deltaTime * speed;
+    const newY = this.y + Math.sin(this.angle) * deltaTime * speed;
 
     if (game.map.tileAt(newX, newY) === 0xFF) {
       this.x = newX;

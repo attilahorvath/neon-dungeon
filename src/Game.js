@@ -115,7 +115,12 @@ export default class Game {
     this.player.draw(this.gl, this.projection, this.view);
 
     for (const snake of this.snakes) {
-      snake.draw(this.gl, this.projection, this.view);
+      if (snake.x >= this.cameraX - 30 &&
+        snake.x <= this.cameraX + SCREEN_WIDTH + 30 &&
+        snake.y >= this.cameraY - 30 &&
+        snake.y <= this.cameraY + SCREEN_HEIGHT + 30) {
+        snake.draw(this.gl, this.projection, this.view);
+      }
     }
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
