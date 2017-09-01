@@ -524,8 +524,7 @@ class LightCone {
 }
 
 const SNAKE_SEGMENTS = 20;
-const SNAKE_MIN_WIDTH = 25;
-const SNAKE_MAX_WIDTH = 40;
+const SNAKE_WIDTH = 30;
 const SNAKE_HEIGHT = 10;
 const SNAKE_SPEED = 0.02;
 
@@ -549,20 +548,19 @@ class Snake {
       x, y, 0.0, 1.0
     ]);
 
-    this.width = SNAKE_MIN_WIDTH;
+    this.width = SNAKE_WIDTH;
     this.widthChange = 1;
+
+    this.phase = 0;
   }
 
   update(deltaTime, game) {
     const gl = game.gl;
 
-    this.width += this.widthChange * (deltaTime * SNAKE_SPEED);
-    if (this.width >= SNAKE_MAX_WIDTH) {
-      this.width = SNAKE_MAX_WIDTH;
-      this.widthChange = -1;
-    } else if (this.width <= SNAKE_MIN_WIDTH) {
-      this.width = SNAKE_MIN_WIDTH;
-      this.widthChange = 1;
+    this.phase += deltaTime * 0.01;
+
+    if (this.phase > Math.PI * 2) {
+      this.phase -= Math.PI * 2;
     }
 
     let vertexIndex = 0;
@@ -570,7 +568,7 @@ class Snake {
     for (let i = 0; i < SNAKE_SEGMENTS; i++) {
       const snakeX = (this.width / SNAKE_SEGMENTS) * i - (this.width / 2.0);
       this.vertices[vertexIndex++] = snakeX;
-      this.vertices[vertexIndex++] = Math.sin(i) * (SNAKE_HEIGHT / 2.0);
+      this.vertices[vertexIndex++] = Math.sin(i + this.phase) * (SNAKE_HEIGHT / 2.0);
     }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
@@ -578,8 +576,6 @@ class Snake {
 
     this.x += Math.cos(this.angle) * deltaTime * SNAKE_SPEED;
     this.y += Math.sin(this.angle) * deltaTime * SNAKE_SPEED;
-
-    // this.angle += deltaTime * 0.001;
 
     this.model[0] = Math.cos(this.angle);
     this.model[1] = Math.sin(this.angle);
