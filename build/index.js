@@ -523,7 +523,7 @@ class LightCone {
   }
 }
 
-const SNAKE_SEGMENTS = 20;
+const SNAKE_SEGMENTS = 24;
 const SNAKE_WIDTH = 30;
 const SNAKE_HEIGHT = 10;
 const SNAKE_SPEED = 0.02;
@@ -563,11 +563,22 @@ class Snake {
 
     let vertexIndex = 0;
 
-    for (let i = 0; i < SNAKE_SEGMENTS; i++) {
-      const snakeX = (SNAKE_WIDTH / SNAKE_SEGMENTS) * i - SNAKE_WIDTH;
+    for (let i = 0; i < SNAKE_SEGMENTS - 4; i++) {
+      const snakeX = ((SNAKE_WIDTH - 10.0) / (SNAKE_SEGMENTS - 4.0)) * i -
+        SNAKE_WIDTH;
       this.vertices[vertexIndex++] = snakeX;
-      this.vertices[vertexIndex++] = Math.sin(i + this.phase) * (SNAKE_HEIGHT / 2.0);
+      this.vertices[vertexIndex++] = Math.sin(i + this.phase) *
+        (SNAKE_HEIGHT / 2.0);
     }
+
+    this.vertices[vertexIndex++] = -5.0;
+    this.vertices[vertexIndex++] = SNAKE_HEIGHT / 2.0;
+    this.vertices[vertexIndex++] = 0.0;
+    this.vertices[vertexIndex++] = 0.0;
+    this.vertices[vertexIndex++] = -5.0;
+    this.vertices[vertexIndex++] = -SNAKE_HEIGHT / 2.0;
+    this.vertices[vertexIndex++] = this.vertices[vertexIndex - 9];
+    this.vertices[vertexIndex++] = this.vertices[vertexIndex - 9];
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
@@ -694,6 +705,8 @@ class PostProcessor {
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
 
+const NUM_SNAKES = 75;
+
 class Game {
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -727,13 +740,25 @@ class Game {
     this.basicShader = new BasicShader(this.gl);
     this.map = new Map(this.gl, this.canvas.width * 4, this.canvas.height * 4);
 
-    const leaf = this.map.root.getRandomLeaf();
+    this.startingRoom = this.map.root.getRandomLeaf();
 
     this.player = new Player(this.gl, this.basicShader,
-      (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
+      (this.startingRoom.roomX + this.startingRoom.roomW / 2) * 10,
+      (this.startingRoom.roomY + this.startingRoom.roomH / 2) * 10);
 
-    this.snake = new Snake(this.gl, this.basicShader,
-      (leaf.roomX + leaf.roomW / 2) * 10, (leaf.roomY + leaf.roomH / 2) * 10);
+    this.snakes = [];
+
+    for (let i = 0; i < NUM_SNAKES; i++) {
+      let room = null;
+
+      do {
+        room = this.map.root.getRandomLeaf();
+      } while (room === this.startingRoom);
+
+      this.snakes.push(new Snake(this.gl, this.basicShader,
+        (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
+        (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10));
+    }
 
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
@@ -753,7 +778,10 @@ class Game {
 
     this.player.update(deltaTime, this);
     this.lightCone.update(deltaTime, this);
-    this.snake.update(deltaTime, this);
+
+    for (const snake of this.snakes) {
+      snake.update(deltaTime, this);
+    }
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -781,7 +809,10 @@ class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, true);
     this.player.draw(this.gl, this.projection, this.view);
-    this.snake.draw(this.gl, this.projection, this.view);
+
+    for (const snake of this.snakes) {
+      snake.draw(this.gl, this.projection, this.view);
+    }
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);

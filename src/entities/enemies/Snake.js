@@ -1,4 +1,4 @@
-const SNAKE_SEGMENTS = 20;
+const SNAKE_SEGMENTS = 24;
 const SNAKE_WIDTH = 30;
 const SNAKE_HEIGHT = 10;
 const SNAKE_SPEED = 0.02;
@@ -38,11 +38,22 @@ export default class Snake {
 
     let vertexIndex = 0;
 
-    for (let i = 0; i < SNAKE_SEGMENTS; i++) {
-      const snakeX = (SNAKE_WIDTH / SNAKE_SEGMENTS) * i - SNAKE_WIDTH;
+    for (let i = 0; i < SNAKE_SEGMENTS - 4; i++) {
+      const snakeX = ((SNAKE_WIDTH - 10.0) / (SNAKE_SEGMENTS - 4.0)) * i -
+        SNAKE_WIDTH;
       this.vertices[vertexIndex++] = snakeX;
-      this.vertices[vertexIndex++] = Math.sin(i + this.phase) * (SNAKE_HEIGHT / 2.0);
+      this.vertices[vertexIndex++] = Math.sin(i + this.phase) *
+        (SNAKE_HEIGHT / 2.0);
     }
+
+    this.vertices[vertexIndex++] = -5.0;
+    this.vertices[vertexIndex++] = SNAKE_HEIGHT / 2.0;
+    this.vertices[vertexIndex++] = 0.0;
+    this.vertices[vertexIndex++] = 0.0;
+    this.vertices[vertexIndex++] = -5.0;
+    this.vertices[vertexIndex++] = -SNAKE_HEIGHT / 2.0;
+    this.vertices[vertexIndex++] = this.vertices[vertexIndex - 9];
+    this.vertices[vertexIndex++] = this.vertices[vertexIndex - 9];
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
