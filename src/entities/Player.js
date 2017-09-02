@@ -1,4 +1,4 @@
-import Heart from './Heart';
+import HeartCollection from './HeartCollection';
 import Sword from './weapons/Sword';
 
 const PLAYER_RADIUS = 5;
@@ -7,8 +7,8 @@ const PLAYER_SPEED = 0.2;
 const PLAYER_LIVES = 3;
 
 export default class Player {
-  constructor(gl, basicShader, x, y) {
-    const vertices = new Float32Array(PLAYER_SEGMENTS * basicShader.vertexSize);
+  constructor(gl, shader, x, y) {
+    const vertices = new Float32Array(PLAYER_SEGMENTS * shader.vertexSize);
 
     let vertexIndex = 0;
 
@@ -23,8 +23,6 @@ export default class Player {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-    this.shader = basicShader;
-
     this.x = x;
     this.y = y;
     this.angle = 0.0;
@@ -37,11 +35,8 @@ export default class Player {
     ]);
 
     this.lives = PLAYER_LIVES;
-    this.hearts = [];
 
-    for (let i = 0; i < PLAYER_LIVES; i++) {
-      this.hearts.push(new Heart(gl, basicShader, 30.0 + i * 50.0, 20.0));
-    }
+    this.heartCollection = new HeartCollection(gl, shader, this.lives);
 
     this.invincibilityTimer = 0;
     this.flashTimer = 0;
@@ -51,7 +46,7 @@ export default class Player {
     this.slidingX = 0;
     this.slidingY = 0;
 
-    this.sword = new Sword(gl, basicShader, this);
+    this.sword = new Sword(gl, shader, this);
   }
 
   validPosition(map, x, y) {
@@ -141,26 +136,21 @@ export default class Player {
     game.shake(500);
   }
 
-  draw(gl, projection, view) {
+  draw(gl, shader) {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
-    this.shader.use(gl);
+    shader.use(gl);
 
-    gl.uniformMatrix4fv(this.shader.projection, false, projection);
-    gl.uniformMatrix4fv(this.shader.view, false, view);
-    gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
     if (this.visible) {
       gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
 
-      this.sword.draw(gl, projection, view);
+      this.sword.draw(gl, shader);
     }
 
-    for (let i = 0; i < this.hearts.length; i++) {
-      const filled = this.lives >= i + 1 ||
-        (this.invincibilityTimer > 0 && this.visible && i === this.lives);
-      this.hearts[i].draw(gl, projection, view, filled);
-    }
+    this.heartCollection.draw(gl, shader, this.lives,
+      this.invincibilityTimer > 0 && this.visible);
   }
 }

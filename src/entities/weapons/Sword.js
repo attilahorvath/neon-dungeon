@@ -1,6 +1,6 @@
 export default class Sword {
-  constructor(gl, basicShader, player) {
-    const vertices = new Float32Array(4 * basicShader.vertexSize);
+  constructor(gl, shader, player) {
+    const vertices = new Float32Array(4 * shader.vertexSize);
 
     let vertexIndex = 0;
 
@@ -19,8 +19,6 @@ export default class Sword {
     this.vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    this.shader = basicShader;
 
     this.x = player.x;
     this.y = player.y;
@@ -45,7 +43,7 @@ export default class Sword {
       this.angle = this.swingBaseAngle - ((150.0 - this.swingTimer) / 150.0) *
         Math.PI * 2.0;
 
-      for (const snake of game.snakes) {
+      for (const snake of game.snakeCollection.snakes) {
         const dist1X = snake.x - this.x;
         const dist1Y = snake.y - this.y;
 
@@ -78,15 +76,13 @@ export default class Sword {
     this.swingBaseAngle = this.angle;
   }
 
-  draw(gl, projection, view) {
+  draw(gl, shader) {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
-    this.shader.use(gl);
+    shader.use(gl);
 
-    gl.uniformMatrix4fv(this.shader.projection, false, projection);
-    gl.uniformMatrix4fv(this.shader.view, false, view);
-    gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
     gl.drawArrays(gl.LINES, 0, 4);
   }

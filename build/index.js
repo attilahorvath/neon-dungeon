@@ -372,12 +372,39 @@ class Map {
   }
 }
 
+class Heart {
+  constructor(heartCollection, x, y) {
+    this.x = x;
+    this.y = y;
+    this.heartCollection = heartCollection;
+
+    this.model = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      x, y, 0.0, 1.0
+    ]);
+  }
+
+  draw(gl, shader, filled) {
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+
+    if (filled) {
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, this.heartCollection.HEART_SEGMENTS);
+    } else {
+      gl.drawArrays(gl.LINE_STRIP, 1, this.heartCollection.HEART_SEGMENTS - 1);
+    }
+  }
+}
+
 const HEART_SEGMENTS = 101;
 const HEART_RADIUS = 10;
 
-class Heart {
-  constructor(gl, basicShader, x, y) {
-    const vertices = new Float32Array(HEART_SEGMENTS * basicShader.vertexSize);
+class HeartCollection {
+  constructor(gl, shader, count) {
+    this.HEART_SEGMENTS = HEART_SEGMENTS;
+
+    const vertices = new Float32Array(HEART_SEGMENTS * shader.vertexSize);
 
     let vertexIndex = 0;
 
@@ -404,11 +431,6 @@ class Heart {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-    this.shader = basicShader;
-
-    this.x = x;
-    this.y = y;
-
     this.view = new Float32Array([
       1.0, 0.0, 0.0, 0.0,
       0.0, 1.0, 0.0, 0.0,
@@ -416,35 +438,31 @@ class Heart {
       0.0, 0.0, 0.0, 1.0
     ]);
 
-    this.model = new Float32Array([
-      1.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      x, y, 0.0, 1.0
-    ]);
+    this.hearts = [];
+
+    for (let i = 0; i < count; i++) {
+      this.hearts.push(new Heart(this, 30.0 + i * 50.0, 20.0));
+    }
   }
 
-  draw(gl, projection, view, filled) {
+  draw(gl, shader, lives, lastFlashing) {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
-    this.shader.use(gl);
+    shader.use(gl);
 
-    gl.uniformMatrix4fv(this.shader.projection, false, projection);
-    gl.uniformMatrix4fv(this.shader.view, false, this.view);
-    gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
+    gl.uniformMatrix4fv(shader.view, false, this.view);
+    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
-    if (filled) {
-      gl.drawArrays(gl.TRIANGLE_FAN, 0, HEART_SEGMENTS);
-    } else {
-      gl.drawArrays(gl.LINE_STRIP, 1, HEART_SEGMENTS - 1);
+    for (let i = 0; i < this.hearts.length; i++) {
+      this.hearts[i].draw(gl, shader, lives >= i + 1 ||
+        (lastFlashing && i === lives));
     }
   }
 }
 
 class Sword {
-  constructor(gl, basicShader, player) {
-    const vertices = new Float32Array(4 * basicShader.vertexSize);
+  constructor(gl, shader, player) {
+    const vertices = new Float32Array(4 * shader.vertexSize);
 
     let vertexIndex = 0;
 
@@ -463,8 +481,6 @@ class Sword {
     this.vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    this.shader = basicShader;
 
     this.x = player.x;
     this.y = player.y;
@@ -489,7 +505,7 @@ class Sword {
       this.angle = this.swingBaseAngle - ((150.0 - this.swingTimer) / 150.0) *
         Math.PI * 2.0;
 
-      for (const snake of game.snakes) {
+      for (const snake of game.snakeCollection.snakes) {
         const dist1X = snake.x - this.x;
         const dist1Y = snake.y - this.y;
 
@@ -522,15 +538,13 @@ class Sword {
     this.swingBaseAngle = this.angle;
   }
 
-  draw(gl, projection, view) {
+  draw(gl, shader) {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
-    this.shader.use(gl);
+    shader.use(gl);
 
-    gl.uniformMatrix4fv(this.shader.projection, false, projection);
-    gl.uniformMatrix4fv(this.shader.view, false, view);
-    gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
     gl.drawArrays(gl.LINES, 0, 4);
   }
@@ -542,8 +556,8 @@ const PLAYER_SPEED = 0.2;
 const PLAYER_LIVES = 3;
 
 class Player {
-  constructor(gl, basicShader, x, y) {
-    const vertices = new Float32Array(PLAYER_SEGMENTS * basicShader.vertexSize);
+  constructor(gl, shader, x, y) {
+    const vertices = new Float32Array(PLAYER_SEGMENTS * shader.vertexSize);
 
     let vertexIndex = 0;
 
@@ -558,8 +572,6 @@ class Player {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-    this.shader = basicShader;
-
     this.x = x;
     this.y = y;
     this.angle = 0.0;
@@ -572,11 +584,8 @@ class Player {
     ]);
 
     this.lives = PLAYER_LIVES;
-    this.hearts = [];
 
-    for (let i = 0; i < PLAYER_LIVES; i++) {
-      this.hearts.push(new Heart(gl, basicShader, 30.0 + i * 50.0, 20.0));
-    }
+    this.heartCollection = new HeartCollection(gl, shader, this.lives);
 
     this.invincibilityTimer = 0;
     this.flashTimer = 0;
@@ -586,7 +595,7 @@ class Player {
     this.slidingX = 0;
     this.slidingY = 0;
 
-    this.sword = new Sword(gl, basicShader, this);
+    this.sword = new Sword(gl, shader, this);
   }
 
   validPosition(map, x, y) {
@@ -676,27 +685,22 @@ class Player {
     game.shake(500);
   }
 
-  draw(gl, projection, view) {
+  draw(gl, shader) {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
-    this.shader.use(gl);
+    shader.use(gl);
 
-    gl.uniformMatrix4fv(this.shader.projection, false, projection);
-    gl.uniformMatrix4fv(this.shader.view, false, view);
-    gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
     if (this.visible) {
       gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
 
-      this.sword.draw(gl, projection, view);
+      this.sword.draw(gl, shader);
     }
 
-    for (let i = 0; i < this.hearts.length; i++) {
-      const filled = this.lives >= i + 1 ||
-        (this.invincibilityTimer > 0 && this.visible && i === this.lives);
-      this.hearts[i].draw(gl, projection, view, filled);
-    }
+    this.heartCollection.draw(gl, shader, this.lives,
+      this.invincibilityTimer > 0 && this.visible);
   }
 }
 
@@ -770,19 +774,11 @@ class LightCone {
   }
 }
 
-const SNAKE_SEGMENTS = 24;
-const SNAKE_WIDTH = 30;
-const SNAKE_HEIGHT = 10;
 const SNAKE_SPEED = 0.02;
 
 class Snake {
-  constructor(gl, basicShader, x, y) {
-    this.vertices = new Float32Array(SNAKE_SEGMENTS * basicShader.vertexSize);
-
-    this.vertexBuffer = gl.createBuffer();
-
-    this.shader = basicShader;
-
+  constructor(snakeCollection, x, y) {
+    this.snakeCollection = snakeCollection;
     this.x = x;
     this.y = y;
 
@@ -796,7 +792,6 @@ class Snake {
       x, y, 0.0, 1.0
     ]);
 
-    this.phase = 0;
     this.alive = true;
     this.charging = false;
   }
@@ -805,36 +800,6 @@ class Snake {
     if (!this.alive) {
       return;
     }
-
-    const gl = game.gl;
-
-    this.phase += deltaTime * (this.charging ? 0.07 : 0.01);
-
-    if (this.phase > Math.PI * 2.0) {
-      this.phase -= Math.PI * 2.0;
-    }
-
-    let vertexIndex = 0;
-
-    for (let i = 0; i < SNAKE_SEGMENTS - 4; i++) {
-      const snakeX = ((SNAKE_WIDTH - 10.0) / (SNAKE_SEGMENTS - 4.0)) * i -
-        SNAKE_WIDTH;
-      this.vertices[vertexIndex++] = snakeX;
-      this.vertices[vertexIndex++] = Math.sin(i + this.phase) *
-        (SNAKE_HEIGHT / 2.0);
-    }
-
-    this.vertices[vertexIndex++] = -5.0;
-    this.vertices[vertexIndex++] = SNAKE_HEIGHT / 2.0;
-    this.vertices[vertexIndex++] = 0.0;
-    this.vertices[vertexIndex++] = 0.0;
-    this.vertices[vertexIndex++] = -5.0;
-    this.vertices[vertexIndex++] = -SNAKE_HEIGHT / 2.0;
-    this.vertices[vertexIndex++] = this.vertices[vertexIndex - 9];
-    this.vertices[vertexIndex++] = this.vertices[vertexIndex - 9];
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
 
     let speed = SNAKE_SPEED;
 
@@ -870,8 +835,8 @@ class Snake {
       this.angle = this.angle - Math.PI;
       this.angleChange = -0.0005 + Math.random() * 0.001;
 
-      this.x += Math.cos(this.angle) * SNAKE_WIDTH;
-      this.y += Math.sin(this.angle) * SNAKE_WIDTH;
+      this.x += Math.cos(this.angle) * this.snakeCollection.SNAKE_WIDTH;
+      this.y += Math.sin(this.angle) * this.snakeCollection.SNAKE_WIDTH;
     }
 
     this.model[0] = Math.cos(this.angle);
@@ -883,26 +848,116 @@ class Snake {
     this.model[13] = this.y;
   }
 
-  draw(gl, projection, view) {
+  draw(gl, shader) {
     if (!this.alive) {
       return;
     }
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-
-    this.shader.use(gl);
-
-    gl.uniformMatrix4fv(this.shader.projection, false, projection);
-    gl.uniformMatrix4fv(this.shader.view, false, view);
-    gl.uniformMatrix4fv(this.shader.model, false, this.model);
+    gl.uniformMatrix4fv(shader.model, false, this.model);
 
     if (this.charging) {
-      gl.uniform4f(this.shader.color, 1.0, 0.0, 1.0, 1.0);
+      gl.uniform4f(shader.color, 1.0, 0.0, 1.0, 1.0);
+      gl.drawArrays(gl.LINE_STRIP, this.snakeCollection.SNAKE_SEGMENTS,
+        this.snakeCollection.SNAKE_SEGMENTS);
     } else {
-      gl.uniform4f(this.shader.color, 0.0, 1.0, 0.0, 1.0);
+      gl.uniform4f(shader.color, 0.0, 1.0, 0.0, 1.0);
+      gl.drawArrays(gl.LINE_STRIP, 0, this.snakeCollection.SNAKE_SEGMENTS);
+    }
+  }
+}
+
+const SNAKE_SEGMENTS = 24;
+const SNAKE_WIDTH = 30;
+const SNAKE_HEIGHT = 10;
+
+class SnakeCollection {
+  constructor(game, count) {
+    this.SNAKE_SEGMENTS = SNAKE_SEGMENTS;
+    this.SNAKE_WIDTH = SNAKE_WIDTH;
+    this.SNAKE_HEIGHT = SNAKE_HEIGHT;
+
+    this.vertices = new Float32Array(this.SNAKE_SEGMENTS * 2 *
+      game.basicShader.vertexSize);
+
+    this.vertexBuffer = game.gl.createBuffer();
+
+    this.snakes = [];
+
+    for (let i = 0; i < count; i++) {
+      let room = null;
+
+      do {
+        room = game.map.root.getRandomLeaf();
+      } while (room === game.startingRoom);
+
+      this.snakes.push(new Snake(this,
+        (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
+        (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10));
     }
 
-    gl.drawArrays(gl.LINE_STRIP, 0, SNAKE_SEGMENTS);
+    this.phase = 0;
+    this.chargingPhase = 0;
+  }
+
+  update(deltaTime, game) {
+    const gl = game.gl;
+
+    this.phase += deltaTime * 0.01;
+    this.chargingPhase += deltaTime * 0.07;
+
+    if (this.phase > Math.PI * 2.0) {
+      this.phase -= Math.PI * 2.0;
+    }
+
+    if (this.chargingPhase > Math.PI * 2.0) {
+      this.chargingPhase -= Math.PI * 2.0;
+    }
+
+    this.vertexIndex = 0;
+
+    this.generateVertices(this.phase);
+    this.generateVertices(this.chargingPhase);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+
+    for (const snake of this.snakes) {
+      snake.update(deltaTime, game);
+    }
+  }
+
+  generateVertices(phase) {
+    for (let i = 0; i < SNAKE_SEGMENTS - 4; i++) {
+      const snakeX = ((SNAKE_WIDTH - 10.0) / (SNAKE_SEGMENTS - 4.0)) * i -
+        SNAKE_WIDTH;
+      this.vertices[this.vertexIndex++] = snakeX;
+      this.vertices[this.vertexIndex++] = Math.sin(i + phase) *
+        (SNAKE_HEIGHT / 2.0);
+    }
+
+    this.vertices[this.vertexIndex++] = -5.0;
+    this.vertices[this.vertexIndex++] = SNAKE_HEIGHT / 2.0;
+    this.vertices[this.vertexIndex++] = 0.0;
+    this.vertices[this.vertexIndex++] = 0.0;
+    this.vertices[this.vertexIndex++] = -5.0;
+    this.vertices[this.vertexIndex++] = -SNAKE_HEIGHT / 2.0;
+    this.vertices[this.vertexIndex++] = this.vertices[this.vertexIndex - 9];
+    this.vertices[this.vertexIndex++] = this.vertices[this.vertexIndex - 9];
+  }
+
+  draw(game) {
+    game.gl.bindBuffer(game.gl.ARRAY_BUFFER, this.vertexBuffer);
+
+    game.basicShader.use(game.gl);
+
+    for (const snake of this.snakes) {
+      if (snake.x >= game.cameraX - 30 &&
+        snake.x <= game.cameraX + game.canvas.width + 30 &&
+        snake.y >= game.cameraY - 30 &&
+        snake.y <= game.cameraY + game.canvas.height + 30) {
+        snake.draw(game.gl, game.basicShader);
+      }
+    }
   }
 }
 
@@ -1030,19 +1085,7 @@ class Game {
       (this.startingRoom.roomX + this.startingRoom.roomW / 2) * 10,
       (this.startingRoom.roomY + this.startingRoom.roomH / 2) * 10);
 
-    this.snakes = [];
-
-    for (let i = 0; i < NUM_SNAKES; i++) {
-      let room = null;
-
-      do {
-        room = this.map.root.getRandomLeaf();
-      } while (room === this.startingRoom);
-
-      this.snakes.push(new Snake(this.gl, this.basicShader,
-        (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
-        (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10));
-    }
+    this.snakeCollection = new SnakeCollection(this, NUM_SNAKES);
 
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
@@ -1065,9 +1108,7 @@ class Game {
     this.player.update(deltaTime, this);
     this.lightCone.update(deltaTime, this);
 
-    for (const snake of this.snakes) {
-      snake.update(deltaTime, this);
-    }
+    this.snakeCollection.update(deltaTime, this);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -1106,16 +1147,14 @@ class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, true);
 
-    for (const snake of this.snakes) {
-      if (snake.x >= this.cameraX - 30 &&
-        snake.x <= this.cameraX + SCREEN_WIDTH + 30 &&
-        snake.y >= this.cameraY - 30 &&
-        snake.y <= this.cameraY + SCREEN_HEIGHT + 30) {
-        snake.draw(this.gl, this.projection, this.view);
-      }
-    }
+    this.basicShader.use(this.gl);
 
-    this.player.draw(this.gl, this.projection, this.view);
+    this.gl.uniformMatrix4fv(this.basicShader.projection, false,
+      this.projection);
+    this.gl.uniformMatrix4fv(this.basicShader.view, false, this.view);
+
+    this.snakeCollection.draw(this);
+    this.player.draw(this.gl, this.basicShader);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);

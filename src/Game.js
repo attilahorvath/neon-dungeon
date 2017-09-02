@@ -3,7 +3,7 @@ import BasicShader from './shaders/BasicShader';
 import Map from './entities/Map';
 import Player from './entities/Player';
 import LightCone from './entities/LightCone';
-import Snake from './entities/enemies/Snake';
+import SnakeCollection from './entities/enemies/SnakeCollection';
 import PostProcessor from './PostProcessor';
 
 const SCREEN_WIDTH = 1280;
@@ -50,19 +50,7 @@ export default class Game {
       (this.startingRoom.roomX + this.startingRoom.roomW / 2) * 10,
       (this.startingRoom.roomY + this.startingRoom.roomH / 2) * 10);
 
-    this.snakes = [];
-
-    for (let i = 0; i < NUM_SNAKES; i++) {
-      let room = null;
-
-      do {
-        room = this.map.root.getRandomLeaf();
-      } while (room === this.startingRoom);
-
-      this.snakes.push(new Snake(this.gl, this.basicShader,
-        (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
-        (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10));
-    }
+    this.snakeCollection = new SnakeCollection(this, NUM_SNAKES);
 
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
@@ -85,9 +73,7 @@ export default class Game {
     this.player.update(deltaTime, this);
     this.lightCone.update(deltaTime, this);
 
-    for (const snake of this.snakes) {
-      snake.update(deltaTime, this);
-    }
+    this.snakeCollection.update(deltaTime, this);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -126,16 +112,14 @@ export default class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, true);
 
-    for (const snake of this.snakes) {
-      if (snake.x >= this.cameraX - 30 &&
-        snake.x <= this.cameraX + SCREEN_WIDTH + 30 &&
-        snake.y >= this.cameraY - 30 &&
-        snake.y <= this.cameraY + SCREEN_HEIGHT + 30) {
-        snake.draw(this.gl, this.projection, this.view);
-      }
-    }
+    this.basicShader.use(this.gl);
 
-    this.player.draw(this.gl, this.projection, this.view);
+    this.gl.uniformMatrix4fv(this.basicShader.projection, false,
+      this.projection);
+    this.gl.uniformMatrix4fv(this.basicShader.view, false, this.view);
+
+    this.snakeCollection.draw(this);
+    this.player.draw(this.gl, this.basicShader);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
