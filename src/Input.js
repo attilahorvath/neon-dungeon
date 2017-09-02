@@ -4,6 +4,7 @@ export default class Input {
     this.DOWN = 2;
     this.LEFT = 4;
     this.RIGHT = 8;
+    this.ACTION = 16;
 
     this.pressed = 0;
     this.lastPressed = 0;

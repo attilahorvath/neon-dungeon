@@ -1,4 +1,5 @@
 import Heart from './Heart';
+import Sword from './weapons/Sword';
 
 const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 10;
@@ -26,6 +27,7 @@ export default class Player {
 
     this.x = x;
     this.y = y;
+    this.angle = 0.0;
 
     this.model = new Float32Array([
       1.0, 0.0, 0.0, 0.0,
@@ -37,13 +39,19 @@ export default class Player {
     this.lives = PLAYER_LIVES;
     this.hearts = [];
 
+    for (let i = 0; i < PLAYER_LIVES; i++) {
+      this.hearts.push(new Heart(gl, basicShader, 30.0 + i * 50.0, 20.0));
+    }
+
     this.invincibilityTimer = 0;
     this.flashTimer = 0;
     this.visible = true;
 
-    for (let i = 0; i < PLAYER_LIVES; i++) {
-      this.hearts.push(new Heart(gl, basicShader, 30.0 + i * 50.0, 20.0));
-    }
+    this.slidingTimer = 0;
+    this.slidingX = 0;
+    this.slidingY = 0;
+
+    this.sword = new Sword(gl, basicShader, this);
   }
 
   validPosition(map, x, y) {
@@ -61,9 +69,27 @@ export default class Player {
     let dirY = (game.input.isPressed(game.input.UP) ? -1 : 0) +
       (game.input.isPressed(game.input.DOWN) ? 1 : 0);
 
+    if (this.sword.swingTimer > 0) {
+      dirX = dirY = 0;
+    }
+
     if (dirX !== 0 && dirY !== 0) {
       dirX *= Math.SQRT2 / 2.0;
       dirY *= Math.SQRT2 / 2.0;
+    }
+
+    if (game.input.isPressed(game.input.LEFT) ||
+      game.input.isPressed(game.input.RIGHT) ||
+      game.input.isPressed(game.input.UP) ||
+      game.input.isPressed(game.input.DOWN)) {
+      this.angle = Math.atan2(dirY, dirX);
+    }
+
+    if (this.slidingTimer > 0) {
+      this.slidingTimer -= deltaTime;
+
+      dirX = this.slidingX;
+      dirY = this.slidingY;
     }
 
     const newX = this.x + dirX * distance;
@@ -92,15 +118,25 @@ export default class Player {
     } else {
       this.visible = true;
     }
+
+    if (game.input.wasJustPressed(game.input.ACTION)) {
+      this.sword.swing();
+    }
+
+    this.sword.update(deltaTime, game);
   }
 
-  damage(game) {
+  damage(game, slidingX, slidingY) {
     if (this.invincibilityTimer > 0) {
       return;
     }
 
     this.lives -= 1;
     this.invincibilityTimer = 1000;
+
+    this.slidingTimer = 500;
+    this.slidingX = slidingX;
+    this.slidingY = slidingY;
 
     game.shake(500);
   }
@@ -117,6 +153,8 @@ export default class Player {
 
     if (this.visible) {
       gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
+
+      this.sword.draw(gl, projection, view);
     }
 
     for (let i = 0; i < this.hearts.length; i++) {

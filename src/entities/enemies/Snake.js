@@ -25,13 +25,18 @@ export default class Snake {
     ]);
 
     this.phase = 0;
+    this.alive = true;
     this.charging = false;
   }
 
   update(deltaTime, game) {
+    if (!this.alive) {
+      return;
+    }
+
     const gl = game.gl;
 
-    this.phase += deltaTime * (this.charging ? 0.05 : 0.01);
+    this.phase += deltaTime * (this.charging ? 0.07 : 0.01);
 
     if (this.phase > Math.PI * 2.0) {
       this.phase -= Math.PI * 2.0;
@@ -63,19 +68,22 @@ export default class Snake {
 
     const distX = game.player.x - this.x;
     const distY = game.player.y - this.y;
+
     const dist = Math.sqrt(distX * distX + distY * distY);
 
+    const dirX = distX / dist;
+    const dirY = distY / dist;
+
     if (dist < 10.0) {
-      game.player.damage(game);
+      game.player.damage(game, dirX, dirY);
     }
 
     this.charging = dist > 10.0 && dist < 150.0 &&
-      game.map.getWallDistance(this.x, this.y, distX / dist, distY / dist) >=
-      dist;
+      game.map.getWallDistance(this.x, this.y, dirX, dirY) >= dist;
 
     if (this.charging) {
       this.angle = Math.atan2(distY, distX);
-      speed *= 5.0;
+      speed *= 7.0;
     } else {
       this.angle += deltaTime * 0.0001;
     }
@@ -104,6 +112,10 @@ export default class Snake {
   }
 
   draw(gl, projection, view) {
+    if (!this.alive) {
+      return;
+    }
+
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
     this.shader.use(gl);

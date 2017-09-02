@@ -7,6 +7,7 @@ class Input {
     this.DOWN = 2;
     this.LEFT = 4;
     this.RIGHT = 8;
+    this.ACTION = 16;
 
     this.pressed = 0;
     this.lastPressed = 0;
@@ -441,6 +442,100 @@ class Heart {
   }
 }
 
+class Sword {
+  constructor(gl, basicShader, player) {
+    const vertices = new Float32Array(4 * basicShader.vertexSize);
+
+    let vertexIndex = 0;
+
+    vertices[vertexIndex++] = 5.0;
+    vertices[vertexIndex++] = 3.0;
+
+    vertices[vertexIndex++] = 20.0;
+    vertices[vertexIndex++] = 0.0;
+
+    vertices[vertexIndex++] = 5.0;
+    vertices[vertexIndex++] = -3.0;
+
+    vertices[vertexIndex++] = 20.0;
+    vertices[vertexIndex++] = 0.0;
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.shader = basicShader;
+
+    this.x = player.x;
+    this.y = player.y;
+
+    this.angle = player.angle + Math.PI / 2.0;
+
+    this.model = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      this.x, this.y, 0.0, 1.0
+    ]);
+  }
+
+  update(deltaTime, game) {
+    this.x = game.player.x;
+    this.y = game.player.y;
+
+    if (this.swingTimer > 0) {
+      this.swingTimer -= deltaTime;
+
+      this.angle = this.swingBaseAngle - ((150.0 - this.swingTimer) / 150.0) *
+        Math.PI * 2.0;
+
+      for (const snake of game.snakes) {
+        const dist1X = snake.x - this.x;
+        const dist1Y = snake.y - this.y;
+
+        const dist1 = Math.sqrt(dist1X * dist1X + dist1Y * dist1Y);
+
+        const dist2X = snake.x - (this.x + Math.cos(this.angle) * 20.0);
+        const dist2Y = snake.y - (this.y + Math.sin(this.angle) * 20.0);
+
+        const dist2 = Math.sqrt(dist2X * dist2X + dist2Y * dist2Y);
+
+        if (dist1 <= 25.0 && dist2 <= 25.0) {
+          snake.alive = false;
+        }
+      }
+    } else {
+      this.angle = game.player.angle + Math.PI;
+    }
+
+    this.model[0] = Math.cos(this.angle);
+    this.model[1] = Math.sin(this.angle);
+    this.model[4] = -Math.sin(this.angle);
+    this.model[5] = Math.cos(this.angle);
+
+    this.model[12] = this.x;
+    this.model[13] = this.y;
+  }
+
+  swing() {
+    this.swingTimer = 150;
+    this.swingBaseAngle = this.angle;
+  }
+
+  draw(gl, projection, view) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+
+    this.shader.use(gl);
+
+    gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, view);
+    gl.uniformMatrix4fv(this.shader.model, false, this.model);
+    gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
+
+    gl.drawArrays(gl.LINES, 0, 4);
+  }
+}
+
 const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 10;
 const PLAYER_SPEED = 0.2;
@@ -467,6 +562,7 @@ class Player {
 
     this.x = x;
     this.y = y;
+    this.angle = 0.0;
 
     this.model = new Float32Array([
       1.0, 0.0, 0.0, 0.0,
@@ -478,13 +574,19 @@ class Player {
     this.lives = PLAYER_LIVES;
     this.hearts = [];
 
+    for (let i = 0; i < PLAYER_LIVES; i++) {
+      this.hearts.push(new Heart(gl, basicShader, 30.0 + i * 50.0, 20.0));
+    }
+
     this.invincibilityTimer = 0;
     this.flashTimer = 0;
     this.visible = true;
 
-    for (let i = 0; i < PLAYER_LIVES; i++) {
-      this.hearts.push(new Heart(gl, basicShader, 30.0 + i * 50.0, 20.0));
-    }
+    this.slidingTimer = 0;
+    this.slidingX = 0;
+    this.slidingY = 0;
+
+    this.sword = new Sword(gl, basicShader, this);
   }
 
   validPosition(map, x, y) {
@@ -502,9 +604,27 @@ class Player {
     let dirY = (game.input.isPressed(game.input.UP) ? -1 : 0) +
       (game.input.isPressed(game.input.DOWN) ? 1 : 0);
 
+    if (this.sword.swingTimer > 0) {
+      dirX = dirY = 0;
+    }
+
     if (dirX !== 0 && dirY !== 0) {
       dirX *= Math.SQRT2 / 2.0;
       dirY *= Math.SQRT2 / 2.0;
+    }
+
+    if (game.input.isPressed(game.input.LEFT) ||
+      game.input.isPressed(game.input.RIGHT) ||
+      game.input.isPressed(game.input.UP) ||
+      game.input.isPressed(game.input.DOWN)) {
+      this.angle = Math.atan2(dirY, dirX);
+    }
+
+    if (this.slidingTimer > 0) {
+      this.slidingTimer -= deltaTime;
+
+      dirX = this.slidingX;
+      dirY = this.slidingY;
     }
 
     const newX = this.x + dirX * distance;
@@ -533,15 +653,25 @@ class Player {
     } else {
       this.visible = true;
     }
+
+    if (game.input.wasJustPressed(game.input.ACTION)) {
+      this.sword.swing();
+    }
+
+    this.sword.update(deltaTime, game);
   }
 
-  damage(game) {
+  damage(game, slidingX, slidingY) {
     if (this.invincibilityTimer > 0) {
       return;
     }
 
     this.lives -= 1;
     this.invincibilityTimer = 1000;
+
+    this.slidingTimer = 500;
+    this.slidingX = slidingX;
+    this.slidingY = slidingY;
 
     game.shake(500);
   }
@@ -558,6 +688,8 @@ class Player {
 
     if (this.visible) {
       gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
+
+      this.sword.draw(gl, projection, view);
     }
 
     for (let i = 0; i < this.hearts.length; i++) {
@@ -665,13 +797,18 @@ class Snake {
     ]);
 
     this.phase = 0;
+    this.alive = true;
     this.charging = false;
   }
 
   update(deltaTime, game) {
+    if (!this.alive) {
+      return;
+    }
+
     const gl = game.gl;
 
-    this.phase += deltaTime * (this.charging ? 0.05 : 0.01);
+    this.phase += deltaTime * (this.charging ? 0.07 : 0.01);
 
     if (this.phase > Math.PI * 2.0) {
       this.phase -= Math.PI * 2.0;
@@ -703,19 +840,22 @@ class Snake {
 
     const distX = game.player.x - this.x;
     const distY = game.player.y - this.y;
+
     const dist = Math.sqrt(distX * distX + distY * distY);
 
+    const dirX = distX / dist;
+    const dirY = distY / dist;
+
     if (dist < 10.0) {
-      game.player.damage(game);
+      game.player.damage(game, dirX, dirY);
     }
 
     this.charging = dist > 10.0 && dist < 150.0 &&
-      game.map.getWallDistance(this.x, this.y, distX / dist, distY / dist) >=
-      dist;
+      game.map.getWallDistance(this.x, this.y, dirX, dirY) >= dist;
 
     if (this.charging) {
       this.angle = Math.atan2(distY, distX);
-      speed *= 5.0;
+      speed *= 7.0;
     } else {
       this.angle += deltaTime * 0.0001;
     }
@@ -744,6 +884,10 @@ class Snake {
   }
 
   draw(gl, projection, view) {
+    if (!this.alive) {
+      return;
+    }
+
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
     this.shader.use(gl);
@@ -1005,6 +1149,9 @@ addEventListener('keydown', event => {
   case 39: case 68: case 76:
     game.input.press(game.input.RIGHT);
     break;
+  case 32: case 88: case 70:
+    game.input.press(game.input.ACTION);
+    break;
   }
 });
 
@@ -1021,6 +1168,9 @@ addEventListener('keyup', event => {
     break;
   case 39: case 68: case 76:
     game.input.release(game.input.RIGHT);
+    break;
+  case 32: case 88: case 70:
+    game.input.release(game.input.ACTION);
     break;
   }
 });

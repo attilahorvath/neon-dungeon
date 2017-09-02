@@ -23,6 +23,9 @@ addEventListener('keydown', event => {
   case 39: case 68: case 76:
     game.input.press(game.input.RIGHT);
     break;
+  case 32: case 88: case 70:
+    game.input.press(game.input.ACTION);
+    break;
   }
 });
 
@@ -39,6 +42,9 @@ addEventListener('keyup', event => {
     break;
   case 39: case 68: case 76:
     game.input.release(game.input.RIGHT);
+    break;
+  case 32: case 88: case 70:
+    game.input.release(game.input.ACTION);
     break;
   }
 });
