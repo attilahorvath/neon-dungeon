@@ -71,6 +71,8 @@ export default class Game {
 
     this.lastTimestamp = performance.now();
 
+    this.shakeTimer = 0;
+
     this.frames = 0;
     this.frameTimer = 0;
   }
@@ -90,6 +92,13 @@ export default class Game {
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
 
+    if (this.shakeTimer > 0) {
+      this.shakeTimer -= deltaTime;
+
+      this.cameraX += -4.0 + Math.random() * 8.0;
+      this.cameraY += -4.0 + Math.random() * 8.0;
+    }
+
     this.view[12] = -this.cameraX;
     this.view[13] = -this.cameraY;
 
@@ -105,6 +114,10 @@ export default class Game {
     }
   }
 
+  shake(duration) {
+    this.shakeTimer = duration;
+  }
+
   draw() {
     this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
 
@@ -112,7 +125,6 @@ export default class Game {
       this.postProcessor.framebuffer);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, true);
-    this.player.draw(this.gl, this.projection, this.view);
 
     for (const snake of this.snakes) {
       if (snake.x >= this.cameraX - 30 &&
@@ -122,6 +134,8 @@ export default class Game {
         snake.draw(this.gl, this.projection, this.view);
       }
     }
+
+    this.player.draw(this.gl, this.projection, this.view);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);

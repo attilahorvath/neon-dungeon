@@ -31,7 +31,7 @@ export default class Snake {
   update(deltaTime, game) {
     const gl = game.gl;
 
-    this.phase += deltaTime * 0.01;
+    this.phase += deltaTime * (this.charging ? 0.05 : 0.01);
 
     if (this.phase > Math.PI * 2.0) {
       this.phase -= Math.PI * 2.0;
@@ -65,13 +65,17 @@ export default class Snake {
     const distY = game.player.y - this.y;
     const dist = Math.sqrt(distX * distX + distY * distY);
 
+    if (dist < 10.0) {
+      game.player.damage(game);
+    }
+
     this.charging = dist > 10.0 && dist < 150.0 &&
       game.map.getWallDistance(this.x, this.y, distX / dist, distY / dist) >=
       dist;
 
     if (this.charging) {
       this.angle = Math.atan2(distY, distX);
-      speed *= 3.0;
+      speed *= 5.0;
     } else {
       this.angle += deltaTime * 0.0001;
     }
@@ -107,7 +111,12 @@ export default class Snake {
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 0.0, 1.0, 0.0, 1.0);
+
+    if (this.charging) {
+      gl.uniform4f(this.shader.color, 1.0, 0.0, 1.0, 1.0);
+    } else {
+      gl.uniform4f(this.shader.color, 0.0, 1.0, 0.0, 1.0);
+    }
 
     gl.drawArrays(gl.LINE_STRIP, 0, SNAKE_SEGMENTS);
   }

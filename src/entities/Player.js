@@ -1,6 +1,9 @@
+import Heart from './Heart';
+
 const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 10;
 const PLAYER_SPEED = 0.2;
+const PLAYER_LIVES = 3;
 
 export default class Player {
   constructor(gl, basicShader, x, y) {
@@ -30,6 +33,17 @@ export default class Player {
       0.0, 0.0, 1.0, 0.0,
       x, y, 0.0, 1.0
     ]);
+
+    this.lives = PLAYER_LIVES;
+    this.hearts = [];
+
+    this.invincibilityTimer = 0;
+    this.flashTimer = 0;
+    this.visible = true;
+
+    for (let i = 0; i < PLAYER_LIVES; i++) {
+      this.hearts.push(new Heart(gl, basicShader, 30.0 + i * 50.0, 20.0));
+    }
   }
 
   validPosition(map, x, y) {
@@ -64,6 +78,31 @@ export default class Player {
       this.y = newY;
       this.model[13] = this.y;
     }
+
+    if (this.invincibilityTimer > 0) {
+      this.invincibilityTimer -= deltaTime;
+
+      if (this.flashTimer > 0) {
+        this.flashTimer -= deltaTime;
+      } else {
+        this.flashTimer = 85;
+
+        this.visible = !this.visible;
+      }
+    } else {
+      this.visible = true;
+    }
+  }
+
+  damage(game) {
+    if (this.invincibilityTimer > 0) {
+      return;
+    }
+
+    this.lives -= 1;
+    this.invincibilityTimer = 1000;
+
+    game.shake(500);
   }
 
   draw(gl, projection, view) {
@@ -76,6 +115,14 @@ export default class Player {
     gl.uniformMatrix4fv(this.shader.model, false, this.model);
     gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
 
-    gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
+    if (this.visible) {
+      gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
+    }
+
+    for (let i = 0; i < this.hearts.length; i++) {
+      const filled = this.lives >= i + 1 ||
+        (this.invincibilityTimer > 0 && this.visible && i === this.lives);
+      this.hearts[i].draw(gl, projection, view, filled);
+    }
   }
 }

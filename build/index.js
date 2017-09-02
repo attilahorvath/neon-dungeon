@@ -371,9 +371,80 @@ class Map {
   }
 }
 
+const HEART_SEGMENTS = 101;
+const HEART_RADIUS = 10;
+
+class Heart {
+  constructor(gl, basicShader, x, y) {
+    const vertices = new Float32Array(HEART_SEGMENTS * basicShader.vertexSize);
+
+    let vertexIndex = 0;
+
+    vertices[vertexIndex++] = 0.0;
+    vertices[vertexIndex++] = 0.0;
+
+    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
+      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
+
+      vertices[vertexIndex++] = vertexX * HEART_RADIUS;
+      vertices[vertexIndex++] = -Math.sqrt(1.0 - (Math.abs(vertexX) - 1.0) *
+        (Math.abs(vertexX) - 1.0)) * HEART_RADIUS;
+    }
+
+    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
+      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
+
+      vertices[vertexIndex++] = -vertexX * HEART_RADIUS;
+      vertices[vertexIndex++] = 3.0 * Math.sqrt(1.0 -
+        (Math.sqrt(Math.abs(vertexX))) / Math.SQRT2) * HEART_RADIUS;
+    }
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.shader = basicShader;
+
+    this.x = x;
+    this.y = y;
+
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.model = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      x, y, 0.0, 1.0
+    ]);
+  }
+
+  draw(gl, projection, view, filled) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+
+    this.shader.use(gl);
+
+    gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, this.view);
+    gl.uniformMatrix4fv(this.shader.model, false, this.model);
+    gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
+
+    if (filled) {
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, HEART_SEGMENTS);
+    } else {
+      gl.drawArrays(gl.LINE_STRIP, 1, HEART_SEGMENTS - 1);
+    }
+  }
+}
+
 const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 10;
 const PLAYER_SPEED = 0.2;
+const PLAYER_LIVES = 3;
 
 class Player {
   constructor(gl, basicShader, x, y) {
@@ -403,6 +474,17 @@ class Player {
       0.0, 0.0, 1.0, 0.0,
       x, y, 0.0, 1.0
     ]);
+
+    this.lives = PLAYER_LIVES;
+    this.hearts = [];
+
+    this.invincibilityTimer = 0;
+    this.flashTimer = 0;
+    this.visible = true;
+
+    for (let i = 0; i < PLAYER_LIVES; i++) {
+      this.hearts.push(new Heart(gl, basicShader, 30.0 + i * 50.0, 20.0));
+    }
   }
 
   validPosition(map, x, y) {
@@ -437,6 +519,31 @@ class Player {
       this.y = newY;
       this.model[13] = this.y;
     }
+
+    if (this.invincibilityTimer > 0) {
+      this.invincibilityTimer -= deltaTime;
+
+      if (this.flashTimer > 0) {
+        this.flashTimer -= deltaTime;
+      } else {
+        this.flashTimer = 85;
+
+        this.visible = !this.visible;
+      }
+    } else {
+      this.visible = true;
+    }
+  }
+
+  damage(game) {
+    if (this.invincibilityTimer > 0) {
+      return;
+    }
+
+    this.lives -= 1;
+    this.invincibilityTimer = 1000;
+
+    game.shake(500);
   }
 
   draw(gl, projection, view) {
@@ -449,7 +556,15 @@ class Player {
     gl.uniformMatrix4fv(this.shader.model, false, this.model);
     gl.uniform4f(this.shader.color, 1.0, 0.0, 0.0, 1.0);
 
-    gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
+    if (this.visible) {
+      gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
+    }
+
+    for (let i = 0; i < this.hearts.length; i++) {
+      const filled = this.lives >= i + 1 ||
+        (this.invincibilityTimer > 0 && this.visible && i === this.lives);
+      this.hearts[i].draw(gl, projection, view, filled);
+    }
   }
 }
 
@@ -556,7 +671,7 @@ class Snake {
   update(deltaTime, game) {
     const gl = game.gl;
 
-    this.phase += deltaTime * 0.01;
+    this.phase += deltaTime * (this.charging ? 0.05 : 0.01);
 
     if (this.phase > Math.PI * 2.0) {
       this.phase -= Math.PI * 2.0;
@@ -590,13 +705,17 @@ class Snake {
     const distY = game.player.y - this.y;
     const dist = Math.sqrt(distX * distX + distY * distY);
 
+    if (dist < 10.0) {
+      game.player.damage(game);
+    }
+
     this.charging = dist > 10.0 && dist < 150.0 &&
       game.map.getWallDistance(this.x, this.y, distX / dist, distY / dist) >=
       dist;
 
     if (this.charging) {
       this.angle = Math.atan2(distY, distX);
-      speed *= 3.0;
+      speed *= 5.0;
     } else {
       this.angle += deltaTime * 0.0001;
     }
@@ -632,7 +751,12 @@ class Snake {
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 0.0, 1.0, 0.0, 1.0);
+
+    if (this.charging) {
+      gl.uniform4f(this.shader.color, 1.0, 0.0, 1.0, 1.0);
+    } else {
+      gl.uniform4f(this.shader.color, 0.0, 1.0, 0.0, 1.0);
+    }
 
     gl.drawArrays(gl.LINE_STRIP, 0, SNAKE_SEGMENTS);
   }
@@ -783,6 +907,8 @@ class Game {
 
     this.lastTimestamp = performance.now();
 
+    this.shakeTimer = 0;
+
     this.frames = 0;
     this.frameTimer = 0;
   }
@@ -802,6 +928,13 @@ class Game {
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
 
+    if (this.shakeTimer > 0) {
+      this.shakeTimer -= deltaTime;
+
+      this.cameraX += -4.0 + Math.random() * 8.0;
+      this.cameraY += -4.0 + Math.random() * 8.0;
+    }
+
     this.view[12] = -this.cameraX;
     this.view[13] = -this.cameraY;
 
@@ -817,6 +950,10 @@ class Game {
     }
   }
 
+  shake(duration) {
+    this.shakeTimer = duration;
+  }
+
   draw() {
     this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
 
@@ -824,7 +961,6 @@ class Game {
       this.postProcessor.framebuffer);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, true);
-    this.player.draw(this.gl, this.projection, this.view);
 
     for (const snake of this.snakes) {
       if (snake.x >= this.cameraX - 30 &&
@@ -834,6 +970,8 @@ class Game {
         snake.draw(this.gl, this.projection, this.view);
       }
     }
+
+    this.player.draw(this.gl, this.projection, this.view);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
