@@ -114,6 +114,7 @@ class MapNode {
     this.h = h;
 
     this.snakes = 0;
+    this.containsGem = false;
   }
 
   isLeaf() {
@@ -508,6 +509,11 @@ class Player {
     this.slidingY = 0;
 
     this.sword = new Sword(gl, shader, this);
+
+    this.gems = 0;
+    this.gemTimer = 0;
+    this.gemFlashTimer = 0;
+    this.gemVisible = true;
   }
 
   validPosition(map, x, y) {
@@ -575,6 +581,18 @@ class Player {
       this.visible = true;
     }
 
+    if (this.gemTimer > 0) {
+      this.gemTimer -= deltaTime;
+
+      if (this.gemFlashTimer > 0) {
+        this.gemFlashTimer -= deltaTime;
+      } else {
+        this.gemFlashTimer = 80;
+
+        this.gemVisible = !this.gemVisible;
+      }
+    }
+
     if (game.input.wasJustPressed(game.input.ACTION)) {
       this.sword.swing();
     }
@@ -587,7 +605,7 @@ class Player {
       return;
     }
 
-    this.lives -= 1;
+    this.lives--;
     this.invincibilityTimer = 1000;
 
     this.slidingTimer = 500;
@@ -595,6 +613,12 @@ class Player {
     this.slidingY = slidingY;
 
     game.shake(500);
+  }
+
+  collectGem() {
+    this.gems++;
+    this.gemTimer = 800;
+    this.gemFlashTimer = 80;
   }
 
   draw(gl, shader) {
@@ -613,22 +637,43 @@ class Player {
   }
 }
 
+var vertexShaderSource$2 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump mat4 model;uniform mediump vec3 color;attribute vec2 vertexPosition;attribute float vertexAlpha;varying highp vec4 vertexColor;void main(){gl_Position=projection*view*model*vec4(vertexPosition,0.0,1.0);vertexColor=vec4(color,vertexAlpha);}";
+
+var fragmentShaderSource$2 = "varying highp vec4 vertexColor;void main(){gl_FragColor=vertexColor;}";
+
+class ColorShader extends Shader {
+  constructor(gl) {
+    const uniforms = ['projection', 'view', 'model', 'color'];
+    const attributes = ['vertexPosition', 'vertexAlpha'];
+
+    super(gl, vertexShaderSource$2, fragmentShaderSource$2, uniforms, attributes,
+      6);
+  }
+
+  use(gl) {
+    super.use(gl);
+
+    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 12, 0);
+    gl.vertexAttribPointer(this.vertexAlpha, 1, gl.FLOAT, false, 12, 8);
+  }
+}
+
 const LIGHT_CONE_SEGMENTS = 256;
 const LIGHT_CONE_RADIUS = 196;
 
 class LightCone {
-  constructor(gl, basicShader) {
+  constructor(gl) {
+    this.shader = new ColorShader(gl);
+
     this.baseVertices = new Float32Array(LIGHT_CONE_SEGMENTS *
-      basicShader.vertexSize);
+      this.shader.vertexSize);
 
     this.baseVertexBuffer = gl.createBuffer();
 
     this.magnifiedVertices = new Float32Array(LIGHT_CONE_SEGMENTS *
-      basicShader.vertexSize);
+      this.shader.vertexSize);
 
     this.magnifiedVertexBuffer = gl.createBuffer();
-
-    this.shader = basicShader;
 
     this.x = 0;
     this.y = 0;
@@ -654,6 +699,9 @@ class LightCone {
 
     let vertexIndex = 2;
 
+    this.baseVertices[vertexIndex] = this.magnifiedVertices[vertexIndex] = 1.0;
+    vertexIndex++;
+
     for (let i = 0; i < LIGHT_CONE_SEGMENTS - 1; i++) {
       const angle = ((Math.PI * 2.0) / (LIGHT_CONE_SEGMENTS - 2)) * i;
 
@@ -670,6 +718,10 @@ class LightCone {
 
       this.baseVertices[vertexIndex] = dirY * distance;
       this.magnifiedVertices[vertexIndex] = dirY * (distance + 5.0);
+      vertexIndex++;
+
+      this.baseVertices[vertexIndex] = this.magnifiedVertices[vertexIndex] =
+        (LIGHT_CONE_RADIUS - distance) / LIGHT_CONE_RADIUS;
       vertexIndex++;
     }
 
@@ -691,7 +743,7 @@ class LightCone {
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 0.7, 0.7, 0.7, 1.0);
+    gl.uniform3f(this.shader.color, 0.7, 0.7, 0.7);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, LIGHT_CONE_SEGMENTS);
   }
@@ -787,6 +839,133 @@ class HeartCollection {
   }
 }
 
+class Gem {
+  constructor(x, y, scale) {
+    this.x = x;
+    this.y = y;
+
+    this.model = new Float32Array([
+      scale, 0.0, 0.0, 0.0,
+      0.0, scale, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      x, y, 0.0, 1.0
+    ]);
+
+    this.collected = false;
+  }
+
+  update(game) {
+    if (this.collected) {
+      return;
+    }
+
+    const distX = game.player.x - this.x;
+    const distY = game.player.y - this.y;
+
+    const dist = Math.sqrt(distX * distX + distY * distY);
+
+    if (dist < 10.0) {
+      game.player.collectGem();
+      this.collected = true;
+    }
+  }
+
+  draw(gl, shader, filled) {
+    if (this.collected) {
+      return;
+    }
+
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+
+    if (filled) {
+      gl.drawElements(gl.TRIANGLES, 24, gl.UNSIGNED_SHORT, 0);
+    } else {
+      gl.drawElements(gl.LINES, 30, gl.UNSIGNED_SHORT,
+        Uint16Array.BYTES_PER_ELEMENT * 24);
+    }
+  }
+}
+
+class GemCollection {
+  constructor(gl, shader, count) {
+    const vertices = new Float32Array([
+      -20.0, 0.0,
+      -13.0, -11.0,
+      -7.0, 0.0,
+      0.0, -11.0,
+      6.0, 0.0,
+      13.0, -11.0,
+      19.0, 0.0,
+      0.0, 25.0
+    ]);
+
+    const indices = new Uint16Array([
+      1, 0, 2,
+      3, 1, 2,
+      3, 2, 4,
+      5, 3, 4,
+      5, 4, 6,
+      2, 0, 7,
+      4, 2, 7,
+      6, 4, 7,
+
+      0, 1,
+      1, 2,
+      0, 2,
+      1, 3,
+      2, 3,
+      2, 4,
+      3, 5,
+      3, 4,
+      4, 5,
+      5, 6,
+      4, 6,
+      0, 7,
+      2, 7,
+      4, 7,
+      6, 7
+    ]);
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.gems = [];
+
+    for (let i = 0; i < count; i++) {
+      this.gems.push(new Gem(30.0 + i * 50.0, 80.0, 1.0));
+    }
+  }
+
+  draw(gl, shader, player) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
+    shader.use(gl);
+
+    gl.uniformMatrix4fv(shader.view, false, this.view);
+    gl.uniform4f(shader.color, 1.0, 0.0, 1.0, 1.0);
+
+    const lastFlashing = player.gemTimer <= 0 || player.gemVisible;
+
+    for (let i = 0; i < this.gems.length; i++) {
+      this.gems[i].draw(gl, shader, player.gems > i + 1 ||
+        (lastFlashing && i === player.gems - 1));
+    }
+  }
+}
+
 const SNAKE_SPEED = 0.02;
 
 class Snake {
@@ -807,6 +986,7 @@ class Snake {
 
     this.alive = true;
     this.charging = false;
+    this.chargingTimer = 500;
   }
 
   update(deltaTime, game) {
@@ -828,12 +1008,18 @@ class Snake {
       game.player.damage(game, dirX, dirY);
     }
 
-    this.charging = dist > 10.0 && dist < 150.0 &&
-      game.map.getWallDistance(this.x, this.y, dirX, dirY) >= dist;
+    if (dist > 10.0 && dist < 150.0 &&
+      game.map.getWallDistance(this.x, this.y, dirX, dirY) >= dist) {
+      this.chargingTimer -= deltaTime;
+    } else {
+      this.chargingTimer = 500;
+    }
+
+    this.charging = this.chargingTimer <= 0;
 
     if (this.charging) {
       this.angle = Math.atan2(distY, distX);
-      speed *= 7.0;
+      speed *= 6.0;
     } else {
       this.angle += deltaTime * 0.0001;
     }
@@ -901,7 +1087,7 @@ class SnakeCollection {
 
       do {
         room = game.map.root.getRandomLeaf();
-      } while (room === game.startingRoom || room.snakes > 4);
+      } while (room === game.startingRoom || room.snakes > 3);
 
       this.snakes.push(new Snake(this,
         (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
@@ -918,7 +1104,7 @@ class SnakeCollection {
     const gl = game.gl;
 
     this.phase += deltaTime * 0.01;
-    this.chargingPhase += deltaTime * 0.07;
+    this.chargingPhase += deltaTime * 0.06;
 
     if (this.phase > Math.PI * 2.0) {
       this.phase -= Math.PI * 2.0;
@@ -976,16 +1162,64 @@ class SnakeCollection {
   }
 }
 
-var vertexShaderSource$2 = "uniform mediump mat4 projection;uniform mediump mat4 view;attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=projection*view*vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+class CollectibleGemCollection {
+  constructor(game, count) {
+    this.vertexBuffer = game.gemCollection.vertexBuffer;
+    this.indexBuffer = game.gemCollection.indexBuffer;
 
-var fragmentShaderSource$2 = "uniform sampler2D sampler;varying highp vec2 texCoord;void main(){gl_FragColor=texture2D(sampler,texCoord);}";
+    this.gems = [];
+
+    for (let i = 0; i < count; i++) {
+      let room = null;
+
+      do {
+        room = game.map.root.getRandomLeaf();
+      } while (room === game.startingRoom || room.containsGem);
+
+      this.gems.push(new Gem(
+        (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
+        (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10,
+        0.7));
+
+      room.containsGem = true;
+    }
+  }
+
+  update(game) {
+    for (const gem of this.gems) {
+      gem.update(game);
+    }
+  }
+
+  draw(game) {
+    game.gl.bindBuffer(game.gl.ARRAY_BUFFER, this.vertexBuffer);
+    game.gl.bindBuffer(game.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
+    game.basicShader.use(game.gl);
+
+    game.gl.uniform4f(game.basicShader.color, 1.0, 0.0, 1.0, 1.0);
+
+    for (const gem of this.gems) {
+      if (gem.x >= game.cameraX - 30 &&
+        gem.x <= game.cameraX + game.canvas.width + 30 &&
+        gem.y >= game.cameraY - 30 &&
+        gem.y <= game.cameraY + game.canvas.height + 30) {
+        gem.draw(game.gl, game.basicShader, false);
+      }
+    }
+  }
+}
+
+var vertexShaderSource$3 = "uniform mediump mat4 projection;uniform mediump mat4 view;attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=projection*view*vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+
+var fragmentShaderSource$3 = "uniform sampler2D sampler;varying highp vec2 texCoord;void main(){gl_FragColor=texture2D(sampler,texCoord);}";
 
 class TextureShader extends Shader {
   constructor(gl) {
     const uniforms = ['projection', 'view', 'sampler'];
     const attributes = ['vertexPosition', 'vertexTexCoord'];
 
-    super(gl, vertexShaderSource$2, fragmentShaderSource$2, uniforms, attributes,
+    super(gl, vertexShaderSource$3, fragmentShaderSource$3, uniforms, attributes,
       4);
   }
 
@@ -1072,16 +1306,16 @@ class FogOfWar {
   }
 }
 
-var vertexShaderSource$3 = "attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+var vertexShaderSource$4 = "attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
 
-var fragmentShaderSource$3 = "precision highp float;uniform sampler2D sampler;uniform vec2 texSize;varying highp vec2 texCoord;void main(){vec2 texStep=1.0/texSize;vec4 color=vec4(0.0);color+=texture2D(sampler,vec2(texCoord.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x-texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x+texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y-texStep.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y+texStep.y));gl_FragColor=color;}";
+var fragmentShaderSource$4 = "precision highp float;uniform sampler2D sampler;uniform vec2 texSize;varying highp vec2 texCoord;void main(){vec2 texStep=1.0/texSize;vec4 color=vec4(0.0);color+=texture2D(sampler,vec2(texCoord.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x-texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x+texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y-texStep.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y+texStep.y));gl_FragColor=color;}";
 
 class BlueShader extends Shader {
   constructor(gl) {
     const uniforms = ['sampler', 'texSize'];
     const attributes = ['vertexPosition', 'vertexTexCoord'];
 
-    super(gl, vertexShaderSource$3, fragmentShaderSource$3, uniforms, attributes,
+    super(gl, vertexShaderSource$4, fragmentShaderSource$4, uniforms, attributes,
       4);
   }
 
@@ -1156,6 +1390,7 @@ const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
 
 const NUM_SNAKES = 75;
+const NUM_GEMS = 5;
 
 class Game {
   constructor() {
@@ -1199,9 +1434,14 @@ class Game {
     this.heartCollection = new HeartCollection(this.gl, this.basicShader,
       this.player.lives);
 
+    this.gemCollection = new GemCollection(this.gl, this.basicShader, NUM_GEMS);
+
     this.snakeCollection = new SnakeCollection(this, NUM_SNAKES);
 
-    this.lightCone = new LightCone(this.gl, this.basicShader);
+    this.collectibleGemCollection = new CollectibleGemCollection(this,
+      NUM_GEMS);
+
+    this.lightCone = new LightCone(this.gl);
 
     this.fogOfWar = new FogOfWar(this.gl, this.map.width, this.map.height);
 
@@ -1227,6 +1467,7 @@ class Game {
     this.lightCone.update(deltaTime, this);
 
     this.snakeCollection.update(deltaTime, this);
+    this.collectibleGemCollection.update(this);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -1280,6 +1521,7 @@ class Game {
     this.gl.uniformMatrix4fv(this.basicShader.view, false, this.view);
 
     this.snakeCollection.draw(this);
+    this.collectibleGemCollection.draw(this);
     this.player.draw(this.gl, this.basicShader);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
@@ -1288,13 +1530,14 @@ class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     this.heartCollection.draw(this.gl, this.basicShader, this.player);
+    this.gemCollection.draw(this.gl, this.basicShader, this.player);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, false);
-    this.lightCone.draw(this.gl, this.projection, this.view, false);
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    this.lightCone.draw(this.gl, this.projection, this.view, false);
     this.postProcessor.draw(this.gl);
     this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
     this.fogOfWar.draw(this.gl, this.projection, this.view);

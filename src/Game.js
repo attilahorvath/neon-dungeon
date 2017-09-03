@@ -4,7 +4,10 @@ import Map from './entities/Map';
 import Player from './entities/Player';
 import LightCone from './entities/LightCone';
 import HeartCollection from './entities/HeartCollection';
+import GemCollection from './entities/GemCollection';
 import SnakeCollection from './entities/enemies/SnakeCollection';
+import CollectibleGemCollection from
+  './entities/collectibles/CollectibleGemCollection';
 import FogOfWar from './FogOfWar';
 import PostProcessor from './PostProcessor';
 
@@ -12,6 +15,7 @@ const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
 
 const NUM_SNAKES = 75;
+const NUM_GEMS = 5;
 
 export default class Game {
   constructor() {
@@ -55,9 +59,14 @@ export default class Game {
     this.heartCollection = new HeartCollection(this.gl, this.basicShader,
       this.player.lives);
 
+    this.gemCollection = new GemCollection(this.gl, this.basicShader, NUM_GEMS);
+
     this.snakeCollection = new SnakeCollection(this, NUM_SNAKES);
 
-    this.lightCone = new LightCone(this.gl, this.basicShader);
+    this.collectibleGemCollection = new CollectibleGemCollection(this,
+      NUM_GEMS);
+
+    this.lightCone = new LightCone(this.gl);
 
     this.fogOfWar = new FogOfWar(this.gl, this.map.width, this.map.height);
 
@@ -83,6 +92,7 @@ export default class Game {
     this.lightCone.update(deltaTime, this);
 
     this.snakeCollection.update(deltaTime, this);
+    this.collectibleGemCollection.update(this);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -136,6 +146,7 @@ export default class Game {
     this.gl.uniformMatrix4fv(this.basicShader.view, false, this.view);
 
     this.snakeCollection.draw(this);
+    this.collectibleGemCollection.draw(this);
     this.player.draw(this.gl, this.basicShader);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
@@ -144,13 +155,14 @@ export default class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     this.heartCollection.draw(this.gl, this.basicShader, this.player);
+    this.gemCollection.draw(this.gl, this.basicShader, this.player);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, false);
-    this.lightCone.draw(this.gl, this.projection, this.view, false);
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+    this.lightCone.draw(this.gl, this.projection, this.view, false);
     this.postProcessor.draw(this.gl);
     this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
     this.fogOfWar.draw(this.gl, this.projection, this.view);

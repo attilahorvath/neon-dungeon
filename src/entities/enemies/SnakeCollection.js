@@ -22,7 +22,7 @@ export default class SnakeCollection {
 
       do {
         room = game.map.root.getRandomLeaf();
-      } while (room === game.startingRoom || room.snakes > 4);
+      } while (room === game.startingRoom || room.snakes > 3);
 
       this.snakes.push(new Snake(this,
         (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
@@ -39,7 +39,7 @@ export default class SnakeCollection {
     const gl = game.gl;
 
     this.phase += deltaTime * 0.01;
-    this.chargingPhase += deltaTime * 0.07;
+    this.chargingPhase += deltaTime * 0.06;
 
     if (this.phase > Math.PI * 2.0) {
       this.phase -= Math.PI * 2.0;

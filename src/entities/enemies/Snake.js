@@ -18,6 +18,7 @@ export default class Snake {
 
     this.alive = true;
     this.charging = false;
+    this.chargingTimer = 500;
   }
 
   update(deltaTime, game) {
@@ -39,12 +40,18 @@ export default class Snake {
       game.player.damage(game, dirX, dirY);
     }
 
-    this.charging = dist > 10.0 && dist < 150.0 &&
-      game.map.getWallDistance(this.x, this.y, dirX, dirY) >= dist;
+    if (dist > 10.0 && dist < 150.0 &&
+      game.map.getWallDistance(this.x, this.y, dirX, dirY) >= dist) {
+      this.chargingTimer -= deltaTime;
+    } else {
+      this.chargingTimer = 500;
+    }
+
+    this.charging = this.chargingTimer <= 0;
 
     if (this.charging) {
       this.angle = Math.atan2(distY, distX);
-      speed *= 7.0;
+      speed *= 6.0;
     } else {
       this.angle += deltaTime * 0.0001;
     }

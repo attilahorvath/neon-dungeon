@@ -1,19 +1,21 @@
+import AlphaShader from '../shaders/AlphaShader';
+
 const LIGHT_CONE_SEGMENTS = 256;
 const LIGHT_CONE_RADIUS = 196;
 
 export default class LightCone {
-  constructor(gl, basicShader) {
+  constructor(gl) {
+    this.shader = new AlphaShader(gl);
+
     this.baseVertices = new Float32Array(LIGHT_CONE_SEGMENTS *
-      basicShader.vertexSize);
+      this.shader.vertexSize);
 
     this.baseVertexBuffer = gl.createBuffer();
 
     this.magnifiedVertices = new Float32Array(LIGHT_CONE_SEGMENTS *
-      basicShader.vertexSize);
+      this.shader.vertexSize);
 
     this.magnifiedVertexBuffer = gl.createBuffer();
-
-    this.shader = basicShader;
 
     this.x = 0;
     this.y = 0;
@@ -39,6 +41,9 @@ export default class LightCone {
 
     let vertexIndex = 2;
 
+    this.baseVertices[vertexIndex] = this.magnifiedVertices[vertexIndex] = 1.0;
+    vertexIndex++;
+
     for (let i = 0; i < LIGHT_CONE_SEGMENTS - 1; i++) {
       const angle = ((Math.PI * 2.0) / (LIGHT_CONE_SEGMENTS - 2)) * i;
 
@@ -55,6 +60,10 @@ export default class LightCone {
 
       this.baseVertices[vertexIndex] = dirY * distance;
       this.magnifiedVertices[vertexIndex] = dirY * (distance + 5.0);
+      vertexIndex++;
+
+      this.baseVertices[vertexIndex] = this.magnifiedVertices[vertexIndex] =
+        (LIGHT_CONE_RADIUS - distance) / LIGHT_CONE_RADIUS;
       vertexIndex++;
     }
 
@@ -76,7 +85,7 @@ export default class LightCone {
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 0.7, 0.7, 0.7, 1.0);
+    gl.uniform3f(this.shader.color, 0.7, 0.7, 0.7);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, LIGHT_CONE_SEGMENTS);
   }

@@ -10,6 +10,7 @@ export default class MapNode {
     this.h = h;
 
     this.snakes = 0;
+    this.containsGem = false;
   }
 
   isLeaf() {

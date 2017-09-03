@@ -44,6 +44,11 @@ export default class Player {
     this.slidingY = 0;
 
     this.sword = new Sword(gl, shader, this);
+
+    this.gems = 0;
+    this.gemTimer = 0;
+    this.gemFlashTimer = 0;
+    this.gemVisible = true;
   }
 
   validPosition(map, x, y) {
@@ -111,6 +116,18 @@ export default class Player {
       this.visible = true;
     }
 
+    if (this.gemTimer > 0) {
+      this.gemTimer -= deltaTime;
+
+      if (this.gemFlashTimer > 0) {
+        this.gemFlashTimer -= deltaTime;
+      } else {
+        this.gemFlashTimer = 80;
+
+        this.gemVisible = !this.gemVisible;
+      }
+    }
+
     if (game.input.wasJustPressed(game.input.ACTION)) {
       this.sword.swing();
     }
@@ -123,7 +140,7 @@ export default class Player {
       return;
     }
 
-    this.lives -= 1;
+    this.lives--;
     this.invincibilityTimer = 1000;
 
     this.slidingTimer = 500;
@@ -131,6 +148,12 @@ export default class Player {
     this.slidingY = slidingY;
 
     game.shake(500);
+  }
+
+  collectGem() {
+    this.gems++;
+    this.gemTimer = 800;
+    this.gemFlashTimer = 80;
   }
 
   draw(gl, shader) {
