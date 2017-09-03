@@ -48,7 +48,7 @@ export default class HeartCollection {
     }
   }
 
-  draw(gl, shader, lives, lastFlashing) {
+  draw(gl, shader, player) {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
     shader.use(gl);
@@ -56,9 +56,11 @@ export default class HeartCollection {
     gl.uniformMatrix4fv(shader.view, false, this.view);
     gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
+    const lastFlashing = player.invincibilityTimer > 0 && player.visible;
+
     for (let i = 0; i < this.hearts.length; i++) {
-      this.hearts[i].draw(gl, shader, lives >= i + 1 ||
-        (lastFlashing && i === lives));
+      this.hearts[i].draw(gl, shader, player.lives >= i + 1 ||
+        (lastFlashing && i === player.lives));
     }
   }
 }

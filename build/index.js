@@ -112,6 +112,8 @@ class MapNode {
     this.y = y;
     this.w = w;
     this.h = h;
+
+    this.snakes = 0;
   }
 
   isLeaf() {
@@ -372,94 +374,6 @@ class Map {
   }
 }
 
-class Heart {
-  constructor(heartCollection, x, y) {
-    this.x = x;
-    this.y = y;
-    this.heartCollection = heartCollection;
-
-    this.model = new Float32Array([
-      1.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      x, y, 0.0, 1.0
-    ]);
-  }
-
-  draw(gl, shader, filled) {
-    gl.uniformMatrix4fv(shader.model, false, this.model);
-
-    if (filled) {
-      gl.drawArrays(gl.TRIANGLE_FAN, 0, this.heartCollection.HEART_SEGMENTS);
-    } else {
-      gl.drawArrays(gl.LINE_STRIP, 1, this.heartCollection.HEART_SEGMENTS - 1);
-    }
-  }
-}
-
-const HEART_SEGMENTS = 101;
-const HEART_RADIUS = 10;
-
-class HeartCollection {
-  constructor(gl, shader, count) {
-    this.HEART_SEGMENTS = HEART_SEGMENTS;
-
-    const vertices = new Float32Array(HEART_SEGMENTS * shader.vertexSize);
-
-    let vertexIndex = 0;
-
-    vertices[vertexIndex++] = 0.0;
-    vertices[vertexIndex++] = 0.0;
-
-    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
-      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
-
-      vertices[vertexIndex++] = vertexX * HEART_RADIUS;
-      vertices[vertexIndex++] = -Math.sqrt(1.0 - (Math.abs(vertexX) - 1.0) *
-        (Math.abs(vertexX) - 1.0)) * HEART_RADIUS;
-    }
-
-    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
-      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
-
-      vertices[vertexIndex++] = -vertexX * HEART_RADIUS;
-      vertices[vertexIndex++] = 3.0 * Math.sqrt(1.0 -
-        (Math.sqrt(Math.abs(vertexX))) / Math.SQRT2) * HEART_RADIUS;
-    }
-
-    this.vertexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    this.view = new Float32Array([
-      1.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0
-    ]);
-
-    this.hearts = [];
-
-    for (let i = 0; i < count; i++) {
-      this.hearts.push(new Heart(this, 30.0 + i * 50.0, 20.0));
-    }
-  }
-
-  draw(gl, shader, lives, lastFlashing) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-
-    shader.use(gl);
-
-    gl.uniformMatrix4fv(shader.view, false, this.view);
-    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
-
-    for (let i = 0; i < this.hearts.length; i++) {
-      this.hearts[i].draw(gl, shader, lives >= i + 1 ||
-        (lastFlashing && i === lives));
-    }
-  }
-}
-
 class Sword {
   constructor(gl, shader, player) {
     const vertices = new Float32Array(4 * shader.vertexSize);
@@ -585,8 +499,6 @@ class Player {
 
     this.lives = PLAYER_LIVES;
 
-    this.heartCollection = new HeartCollection(gl, shader, this.lives);
-
     this.invincibilityTimer = 0;
     this.flashTimer = 0;
     this.visible = true;
@@ -698,21 +610,23 @@ class Player {
 
       this.sword.draw(gl, shader);
     }
-
-    this.heartCollection.draw(gl, shader, this.lives,
-      this.invincibilityTimer > 0 && this.visible);
   }
 }
 
 const LIGHT_CONE_SEGMENTS = 256;
-const LIGHT_CONE_RADIUS = 128;
+const LIGHT_CONE_RADIUS = 196;
 
 class LightCone {
   constructor(gl, basicShader) {
-    this.vertices = new Float32Array(LIGHT_CONE_SEGMENTS *
+    this.baseVertices = new Float32Array(LIGHT_CONE_SEGMENTS *
       basicShader.vertexSize);
 
-    this.vertexBuffer = gl.createBuffer();
+    this.baseVertexBuffer = gl.createBuffer();
+
+    this.magnifiedVertices = new Float32Array(LIGHT_CONE_SEGMENTS *
+      basicShader.vertexSize);
+
+    this.magnifiedVertexBuffer = gl.createBuffer();
 
     this.shader = basicShader;
 
@@ -750,27 +664,126 @@ class LightCone {
         game.map.getWallDistance(this.x, this.y, dirX, dirY),
         LIGHT_CONE_RADIUS);
 
-      this.vertices[vertexIndex++] = dirX * distance;
-      this.vertices[vertexIndex++] = dirY * distance;
+      this.baseVertices[vertexIndex] = dirX * distance;
+      this.magnifiedVertices[vertexIndex] = dirX * (distance + 5.0);
+      vertexIndex++;
+
+      this.baseVertices[vertexIndex] = dirY * distance;
+      this.magnifiedVertices[vertexIndex] = dirY * (distance + 5.0);
+      vertexIndex++;
     }
 
     const gl = game.gl;
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.baseVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.baseVertices, gl.STATIC_DRAW);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.magnifiedVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.magnifiedVertices, gl.STATIC_DRAW);
   }
 
-  draw(gl, projection, view) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+  draw(gl, projection, view, magnified) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, (magnified ? this.magnifiedVertexBuffer
+      : this.baseVertexBuffer));
 
     this.shader.use(gl);
 
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 1.0, 1.0, 0.0, 1.0);
+    gl.uniform4f(this.shader.color, 0.7, 0.7, 0.7, 1.0);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, LIGHT_CONE_SEGMENTS);
+  }
+}
+
+class Heart {
+  constructor(heartCollection, x, y) {
+    this.x = x;
+    this.y = y;
+    this.heartCollection = heartCollection;
+
+    this.model = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      x, y, 0.0, 1.0
+    ]);
+  }
+
+  draw(gl, shader, filled) {
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+
+    if (filled) {
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, this.heartCollection.HEART_SEGMENTS);
+    } else {
+      gl.drawArrays(gl.LINE_STRIP, 1, this.heartCollection.HEART_SEGMENTS - 1);
+    }
+  }
+}
+
+const HEART_SEGMENTS = 101;
+const HEART_RADIUS = 10;
+
+class HeartCollection {
+  constructor(gl, shader, count) {
+    this.HEART_SEGMENTS = HEART_SEGMENTS;
+
+    const vertices = new Float32Array(HEART_SEGMENTS * shader.vertexSize);
+
+    let vertexIndex = 0;
+
+    vertices[vertexIndex++] = 0.0;
+    vertices[vertexIndex++] = 0.0;
+
+    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
+      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
+
+      vertices[vertexIndex++] = vertexX * HEART_RADIUS;
+      vertices[vertexIndex++] = -Math.sqrt(1.0 - (Math.abs(vertexX) - 1.0) *
+        (Math.abs(vertexX) - 1.0)) * HEART_RADIUS;
+    }
+
+    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
+      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
+
+      vertices[vertexIndex++] = -vertexX * HEART_RADIUS;
+      vertices[vertexIndex++] = 3.0 * Math.sqrt(1.0 -
+        (Math.sqrt(Math.abs(vertexX))) / Math.SQRT2) * HEART_RADIUS;
+    }
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.hearts = [];
+
+    for (let i = 0; i < count; i++) {
+      this.hearts.push(new Heart(this, 30.0 + i * 50.0, 20.0));
+    }
+  }
+
+  draw(gl, shader, player) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+
+    shader.use(gl);
+
+    gl.uniformMatrix4fv(shader.view, false, this.view);
+    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
+
+    const lastFlashing = player.invincibilityTimer > 0 && player.visible;
+
+    for (let i = 0; i < this.hearts.length; i++) {
+      this.hearts[i].draw(gl, shader, player.lives >= i + 1 ||
+        (lastFlashing && i === player.lives));
+    }
   }
 }
 
@@ -888,11 +901,13 @@ class SnakeCollection {
 
       do {
         room = game.map.root.getRandomLeaf();
-      } while (room === game.startingRoom);
+      } while (room === game.startingRoom || room.snakes > 4);
 
       this.snakes.push(new Snake(this,
         (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
         (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10));
+
+      room.snakes++;
     }
 
     this.phase = 0;
@@ -961,16 +976,112 @@ class SnakeCollection {
   }
 }
 
-var vertexShaderSource$2 = "attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+var vertexShaderSource$2 = "uniform mediump mat4 projection;uniform mediump mat4 view;attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=projection*view*vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
 
-var fragmentShaderSource$2 = "precision highp float;uniform sampler2D sampler;uniform vec2 texSize;varying highp vec2 texCoord;void main(){vec2 texStep=1.0/texSize;vec4 color=vec4(0.0);color+=texture2D(sampler,vec2(texCoord.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x-texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x+texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y-texStep.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y+texStep.y));gl_FragColor=color;}";
+var fragmentShaderSource$2 = "uniform sampler2D sampler;varying highp vec2 texCoord;void main(){gl_FragColor=texture2D(sampler,texCoord);}";
+
+class TextureShader extends Shader {
+  constructor(gl) {
+    const uniforms = ['projection', 'view', 'sampler'];
+    const attributes = ['vertexPosition', 'vertexTexCoord'];
+
+    super(gl, vertexShaderSource$2, fragmentShaderSource$2, uniforms, attributes,
+      4);
+  }
+
+  use(gl) {
+    super.use(gl);
+
+    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 16, 0);
+    gl.vertexAttribPointer(this.vertexTexCoord, 2, gl.FLOAT, false, 16, 8);
+  }
+}
+
+class FogOfWar {
+  constructor(gl, width, height) {
+    this.width = width;
+    this.height = height;
+
+    const vertices = new Float32Array([
+      0.0, 0.0, 0.0, 0.0,
+      this.width - 1.0, 0.0, 1.0, 0.0,
+      0.0, this.height - 1.0, 0.0, 1.0,
+      this.width - 1.0, this.height - 1.0, 1.0, 1.0
+    ]);
+
+    const indices = new Uint16Array([
+      0, 2, 1,
+      1, 2, 3
+    ]);
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+    this.texture = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0,
+      gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    this.framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D, this.texture, 0);
+
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    this.projection = new Float32Array([
+      2.0 / (this.width - 1.0), 0.0, 0.0, 0.0,
+      0.0, 2.0 / (this.height - 1.0), 0.0, 0.0,
+      0.0, 0.0, -1.0, 0.0,
+      -1.0, -1.0, 0.0, 1.0
+    ]);
+
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.shader = new TextureShader(gl);
+  }
+
+  draw(gl, projection, view) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
+    this.shader.use(gl);
+
+    gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, view);
+
+    gl.uniform1i(this.shader.sampler, 0);
+
+    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
+    gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+  }
+}
+
+var vertexShaderSource$3 = "attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+
+var fragmentShaderSource$3 = "precision highp float;uniform sampler2D sampler;uniform vec2 texSize;varying highp vec2 texCoord;void main(){vec2 texStep=1.0/texSize;vec4 color=vec4(0.0);color+=texture2D(sampler,vec2(texCoord.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x-texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x+texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y-texStep.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y+texStep.y));gl_FragColor=color;}";
 
 class BlueShader extends Shader {
   constructor(gl) {
     const uniforms = ['sampler', 'texSize'];
     const attributes = ['vertexPosition', 'vertexTexCoord'];
 
-    super(gl, vertexShaderSource$2, fragmentShaderSource$2, uniforms, attributes,
+    super(gl, vertexShaderSource$3, fragmentShaderSource$3, uniforms, attributes,
       4);
   }
 
@@ -1085,11 +1196,18 @@ class Game {
       (this.startingRoom.roomX + this.startingRoom.roomW / 2) * 10,
       (this.startingRoom.roomY + this.startingRoom.roomH / 2) * 10);
 
+    this.heartCollection = new HeartCollection(this.gl, this.basicShader,
+      this.player.lives);
+
     this.snakeCollection = new SnakeCollection(this, NUM_SNAKES);
 
     this.lightCone = new LightCone(this.gl, this.basicShader);
 
+    this.fogOfWar = new FogOfWar(this.gl, this.map.width, this.map.height);
+
     this.postProcessor = new PostProcessor(this.gl, this.canvas.width,
+      this.canvas.height);
+    this.guiPostProcessor = new PostProcessor(this.gl, this.canvas.width,
       this.canvas.height);
 
     this.lastTimestamp = performance.now();
@@ -1140,10 +1258,18 @@ class Game {
   }
 
   draw() {
+    this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fogOfWar.framebuffer);
+    this.gl.viewport(0, 0, this.fogOfWar.width, this.fogOfWar.height);
+    this.lightCone.draw(this.gl, this.fogOfWar.projection, this.fogOfWar.view,
+      true);
+
     this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
       this.postProcessor.framebuffer);
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, true);
 
@@ -1156,12 +1282,26 @@ class Game {
     this.snakeCollection.draw(this);
     this.player.draw(this.gl, this.basicShader);
 
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.guiPostProcessor.framebuffer);
+    this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
+    this.heartCollection.draw(this.gl, this.basicShader, this.player);
+
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
+    this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, false);
-    this.lightCone.draw(this.gl, this.projection, this.view);
+    this.lightCone.draw(this.gl, this.projection, this.view, false);
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
     this.postProcessor.draw(this.gl);
+    this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
+    this.fogOfWar.draw(this.gl, this.projection, this.view);
+
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+
+    this.guiPostProcessor.draw(this.gl);
   }
 }
 
@@ -1178,18 +1318,23 @@ addEventListener('keydown', event => {
   switch (event.keyCode) {
   case 38: case 87: case 75:
     game.input.press(game.input.UP);
+    event.preventDefault();
     break;
   case 40: case 83: case 74:
     game.input.press(game.input.DOWN);
+    event.preventDefault();
     break;
   case 37: case 65: case 72:
     game.input.press(game.input.LEFT);
+    event.preventDefault();
     break;
   case 39: case 68: case 76:
     game.input.press(game.input.RIGHT);
+    event.preventDefault();
     break;
   case 32: case 88: case 70:
     game.input.press(game.input.ACTION);
+    event.preventDefault();
     break;
   }
 });
@@ -1198,18 +1343,23 @@ addEventListener('keyup', event => {
   switch (event.keyCode) {
   case 38: case 87: case 75:
     game.input.release(game.input.UP);
+    event.preventDefault();
     break;
   case 40: case 83: case 74:
     game.input.release(game.input.DOWN);
+    event.preventDefault();
     break;
   case 37: case 65: case 72:
     game.input.release(game.input.LEFT);
+    event.preventDefault();
     break;
   case 39: case 68: case 76:
     game.input.release(game.input.RIGHT);
+    event.preventDefault();
     break;
   case 32: case 88: case 70:
     game.input.release(game.input.ACTION);
+    event.preventDefault();
     break;
   }
 });

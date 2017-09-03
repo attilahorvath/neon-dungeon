@@ -1,4 +1,3 @@
-import HeartCollection from './HeartCollection';
 import Sword from './weapons/Sword';
 
 const PLAYER_RADIUS = 5;
@@ -35,8 +34,6 @@ export default class Player {
     ]);
 
     this.lives = PLAYER_LIVES;
-
-    this.heartCollection = new HeartCollection(gl, shader, this.lives);
 
     this.invincibilityTimer = 0;
     this.flashTimer = 0;
@@ -149,8 +146,5 @@ export default class Player {
 
       this.sword.draw(gl, shader);
     }
-
-    this.heartCollection.draw(gl, shader, this.lives,
-      this.invincibilityTimer > 0 && this.visible);
   }
 }

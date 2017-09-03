@@ -8,6 +8,8 @@ export default class MapNode {
     this.y = y;
     this.w = w;
     this.h = h;
+
+    this.snakes = 0;
   }
 
   isLeaf() {

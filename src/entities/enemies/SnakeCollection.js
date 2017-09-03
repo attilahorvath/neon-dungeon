@@ -22,11 +22,13 @@ export default class SnakeCollection {
 
       do {
         room = game.map.root.getRandomLeaf();
-      } while (room === game.startingRoom);
+      } while (room === game.startingRoom || room.snakes > 4);
 
       this.snakes.push(new Snake(this,
         (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
         (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10));
+
+      room.snakes++;
     }
 
     this.phase = 0;

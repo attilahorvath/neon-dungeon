@@ -1,12 +1,17 @@
 const LIGHT_CONE_SEGMENTS = 256;
-const LIGHT_CONE_RADIUS = 128;
+const LIGHT_CONE_RADIUS = 196;
 
 export default class LightCone {
   constructor(gl, basicShader) {
-    this.vertices = new Float32Array(LIGHT_CONE_SEGMENTS *
+    this.baseVertices = new Float32Array(LIGHT_CONE_SEGMENTS *
       basicShader.vertexSize);
 
-    this.vertexBuffer = gl.createBuffer();
+    this.baseVertexBuffer = gl.createBuffer();
+
+    this.magnifiedVertices = new Float32Array(LIGHT_CONE_SEGMENTS *
+      basicShader.vertexSize);
+
+    this.magnifiedVertexBuffer = gl.createBuffer();
 
     this.shader = basicShader;
 
@@ -44,25 +49,34 @@ export default class LightCone {
         game.map.getWallDistance(this.x, this.y, dirX, dirY),
         LIGHT_CONE_RADIUS);
 
-      this.vertices[vertexIndex++] = dirX * distance;
-      this.vertices[vertexIndex++] = dirY * distance;
+      this.baseVertices[vertexIndex] = dirX * distance;
+      this.magnifiedVertices[vertexIndex] = dirX * (distance + 5.0);
+      vertexIndex++;
+
+      this.baseVertices[vertexIndex] = dirY * distance;
+      this.magnifiedVertices[vertexIndex] = dirY * (distance + 5.0);
+      vertexIndex++;
     }
 
     const gl = game.gl;
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.baseVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.baseVertices, gl.STATIC_DRAW);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.magnifiedVertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.magnifiedVertices, gl.STATIC_DRAW);
   }
 
-  draw(gl, projection, view) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+  draw(gl, projection, view, magnified) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, (magnified ? this.magnifiedVertexBuffer
+      : this.baseVertexBuffer));
 
     this.shader.use(gl);
 
     gl.uniformMatrix4fv(this.shader.projection, false, projection);
     gl.uniformMatrix4fv(this.shader.view, false, view);
     gl.uniformMatrix4fv(this.shader.model, false, this.model);
-    gl.uniform4f(this.shader.color, 1.0, 1.0, 0.0, 1.0);
+    gl.uniform4f(this.shader.color, 0.7, 0.7, 0.7, 1.0);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, LIGHT_CONE_SEGMENTS);
   }
