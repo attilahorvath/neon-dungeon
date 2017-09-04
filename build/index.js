@@ -378,20 +378,17 @@ class Map {
 
 class Sword {
   constructor(gl, shader, player) {
-    const vertices = new Float32Array(4 * shader.vertexSize);
+    const vertices = new Float32Array(3 * shader.vertexSize);
 
     let vertexIndex = 0;
 
-    vertices[vertexIndex++] = 2.0;
-    vertices[vertexIndex++] = 5.0;
+    vertices[vertexIndex++] = 3.0;
+    vertices[vertexIndex++] = 6.0;
 
     vertices[vertexIndex++] = 20.0;
     vertices[vertexIndex++] = 0.0;
 
-    vertices[vertexIndex++] = 5.0;
-    vertices[vertexIndex++] = 0.0;
-
-    vertices[vertexIndex++] = 20.0;
+    vertices[vertexIndex++] = 6.0;
     vertices[vertexIndex++] = 0.0;
 
     this.vertexBuffer = gl.createBuffer();
@@ -431,7 +428,7 @@ class Sword {
         const particleDirY = Math.sin(particleAngle) * Math.random() * 0.1;
 
         game.particleSystem.emit(game.gl, endX, endY,
-          particleDirX, particleDirY, 1.0, 0.0, 0.0, 1);
+          particleDirX, particleDirY, 1.0, 1.0, 0.0, 1);
       }
 
       for (const snake of game.snakeCollection.snakes) {
@@ -482,9 +479,9 @@ class Sword {
     shader.use(gl);
 
     gl.uniformMatrix4fv(shader.model, false, this.model);
-    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
+    gl.uniform4f(shader.color, 1.0, 1.0, 0.0, 1.0);
 
-    gl.drawArrays(gl.LINES, 0, 4);
+    gl.drawArrays(gl.LINE_STRIP, 0, 3);
   }
 }
 
@@ -685,6 +682,12 @@ class Player {
   }
 
   draw(gl, shader) {
+    if (!this.visible) {
+      return;
+    }
+
+    this.sword.draw(gl, shader);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
     shader.use(gl);
@@ -692,11 +695,7 @@ class Player {
     gl.uniformMatrix4fv(shader.model, false, this.model);
     gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
-    if (this.visible) {
-      gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
-
-      this.sword.draw(gl, shader);
-    }
+    gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
   }
 }
 
@@ -1530,7 +1529,7 @@ class PostProcessor {
   }
 }
 
-var vertexShaderSource$5 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump float elapsedTime;attribute vec2 particlePosition;attribute vec2 particleVelocity;attribute float particleEmitted;attribute vec3 particleColor;varying mediump vec4 color;void main(){vec2 position=particlePosition+particleVelocity*(elapsedTime-particleEmitted);gl_Position=projection*view*vec4(position,0.0,1.0);color=vec4(particleColor,(1000.0-(elapsedTime-particleEmitted))/1000.0);}";
+var vertexShaderSource$5 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump float elapsedTime;attribute vec2 particlePosition;attribute vec2 particleVelocity;attribute float particleEmitted;attribute vec3 particleColor;varying mediump vec4 color;void main(){vec2 position=particlePosition+particleVelocity*(elapsedTime-particleEmitted);gl_Position=projection*view*vec4(position,0.0,1.0);color=vec4(particleColor,(1000.0-(elapsedTime-particleEmitted))/1000.0);gl_PointSize=3.0;}";
 
 var fragmentShaderSource$5 = "varying mediump vec4 color;void main(){gl_FragColor=color;}";
 

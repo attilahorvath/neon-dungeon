@@ -197,6 +197,12 @@ export default class Player {
   }
 
   draw(gl, shader) {
+    if (!this.visible) {
+      return;
+    }
+
+    this.sword.draw(gl, shader);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
 
     shader.use(gl);
@@ -204,10 +210,6 @@ export default class Player {
     gl.uniformMatrix4fv(shader.model, false, this.model);
     gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
-    if (this.visible) {
-      gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
-
-      this.sword.draw(gl, shader);
-    }
+    gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
   }
 }

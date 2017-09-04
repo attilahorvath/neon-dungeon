@@ -13,5 +13,7 @@ void main() {
   vec2 position = particlePosition + particleVelocity *
     (elapsedTime - particleEmitted);
   gl_Position = projection * view * vec4(position, 0.0, 1.0);
-  color = vec4(particleColor, (1000.0 - (elapsedTime - particleEmitted)) / 1000.0);
+  color = vec4(particleColor, (1000.0 - (elapsedTime - particleEmitted)) /
+    1000.0);
+  gl_PointSize = 3.0;
 }
