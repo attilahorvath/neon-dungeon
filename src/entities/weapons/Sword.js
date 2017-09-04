@@ -69,12 +69,10 @@ export default class Sword {
         const dist2 = Math.sqrt(dist2X * dist2X + dist2Y * dist2Y);
 
         if (dist1 <= 25.0 && dist2 <= 25.0) {
-          for (let i = 0; i < 50; i++) {
-            game.particleSystem.emit(game.gl, snake.x, snake.y,
-              -0.2 + Math.random() * 0.4, -0.2 + Math.random() * 0.4,
-              1.0, 0.0, 1.0);
-          }
           snake.alive = false;
+
+          game.particleSystem.emitRandom(game.gl, this.x, this.y, 0.01, 0.2,
+            1.0, 0.0, 1.0, 50);
         }
       }
     } else {

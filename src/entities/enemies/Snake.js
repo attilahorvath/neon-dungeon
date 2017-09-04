@@ -36,7 +36,7 @@ export default class Snake {
     const dirX = distX / dist;
     const dirY = distY / dist;
 
-    if (dist < 10.0) {
+    if (dist < 5.0) {
       game.player.damage(game, dirX, dirY);
     }
 

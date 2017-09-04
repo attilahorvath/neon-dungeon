@@ -165,35 +165,26 @@ export default class Player {
 
     game.shake(500);
 
-    for (let i = 0; i < 50; i++) {
-      game.particleSystem.emit(game.gl, this.x, this.y,
-        -0.2 + Math.random() * 0.4, -0.2 + Math.random() * 0.4,
-        1.0, 0.0, 0.0);
-    }
+    game.particleSystem.emitRandom(game.gl, this.x, this.y, 0.01, 0.2,
+      1.0, 0.0, 0.0, 50);
   }
 
-  collectGem(game) {
+  collectGem(game, gem) {
     this.gems++;
     this.gemTimer = 800;
     this.gemFlashTimer = 80;
 
-    for (let i = 0; i < 50; i++) {
-      game.particleSystem.emit(game.gl, this.x, this.y,
-        -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
-        1.0, 0.0, 1.0);
-    }
+    game.particleSystem.emitRandom(game.gl, gem.x, gem.y, 0.01, 0.1,
+      1.0, 0.0, 1.0, 50);
   }
 
-  collectHeart(game) {
+  collectHeart(game, heart) {
     this.lives++;
     this.newHeartTimer = 800;
     this.newHeartFlashTimer = 80;
 
-    for (let i = 0; i < 50; i++) {
-      game.particleSystem.emit(game.gl, this.x, this.y,
-        -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
-        1.0, 0.0, 0.0);
-    }
+    game.particleSystem.emitRandom(game.gl, heart.x, heart.y, 0.01, 0.1,
+      1.0, 0.0, 0.0, 50);
   }
 
   draw(gl, shader) {

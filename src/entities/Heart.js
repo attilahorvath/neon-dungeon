@@ -25,7 +25,7 @@ export default class Heart {
     const dist = Math.sqrt(distX * distX + distY * distY);
 
     if (dist <= 20.0) {
-      game.player.collectHeart(game);
+      game.player.collectHeart(game, this);
       this.collected = true;
     }
   }

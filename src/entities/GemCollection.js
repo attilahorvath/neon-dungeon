@@ -3,14 +3,14 @@ import Gem from './Gem';
 export default class GemCollection {
   constructor(gl, shader, count) {
     const vertices = new Float32Array([
-      -20.0, 0.0,
-      -13.0, -11.0,
-      -7.0, 0.0,
-      0.0, -11.0,
-      6.0, 0.0,
-      13.0, -11.0,
-      19.0, 0.0,
-      0.0, 25.0
+      -20.0, -7.0,
+      -13.0, -18.0,
+      -7.0, -7.0,
+      0.0, -18.0,
+      6.0, -7.0,
+      13.0, -18.0,
+      19.0, -7.0,
+      0.0, 18.0
     ]);
 
     const indices = new Uint16Array([

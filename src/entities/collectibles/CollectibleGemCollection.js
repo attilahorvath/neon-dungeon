@@ -15,8 +15,8 @@ export default class CollectibleGemCollection {
       } while (room === game.startingRoom || room.containsGem);
 
       this.gems.push(new Gem(
-        (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
-        (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10,
+        (room.roomX + 2 + Math.random() * (room.roomW - 4)) * 10,
+        (room.roomY + 2 + Math.random() * (room.roomH - 4)) * 10,
         0.7));
 
       room.containsGem = true;

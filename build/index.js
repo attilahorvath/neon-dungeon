@@ -447,12 +447,10 @@ class Sword {
         const dist2 = Math.sqrt(dist2X * dist2X + dist2Y * dist2Y);
 
         if (dist1 <= 25.0 && dist2 <= 25.0) {
-          for (let i = 0; i < 50; i++) {
-            game.particleSystem.emit(game.gl, snake.x, snake.y,
-              -0.2 + Math.random() * 0.4, -0.2 + Math.random() * 0.4,
-              1.0, 0.0, 1.0);
-          }
           snake.alive = false;
+
+          game.particleSystem.emitRandom(game.gl, this.x, this.y, 0.01, 0.2,
+            1.0, 0.0, 1.0, 50);
         }
       }
     } else {
@@ -650,35 +648,26 @@ class Player {
 
     game.shake(500);
 
-    for (let i = 0; i < 50; i++) {
-      game.particleSystem.emit(game.gl, this.x, this.y,
-        -0.2 + Math.random() * 0.4, -0.2 + Math.random() * 0.4,
-        1.0, 0.0, 0.0);
-    }
+    game.particleSystem.emitRandom(game.gl, this.x, this.y, 0.01, 0.2,
+      1.0, 0.0, 0.0, 50);
   }
 
-  collectGem(game) {
+  collectGem(game, gem) {
     this.gems++;
     this.gemTimer = 800;
     this.gemFlashTimer = 80;
 
-    for (let i = 0; i < 50; i++) {
-      game.particleSystem.emit(game.gl, this.x, this.y,
-        -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
-        1.0, 0.0, 1.0);
-    }
+    game.particleSystem.emitRandom(game.gl, gem.x, gem.y, 0.01, 0.1,
+      1.0, 0.0, 1.0, 50);
   }
 
-  collectHeart(game) {
+  collectHeart(game, heart) {
     this.lives++;
     this.newHeartTimer = 800;
     this.newHeartFlashTimer = 80;
 
-    for (let i = 0; i < 50; i++) {
-      game.particleSystem.emit(game.gl, this.x, this.y,
-        -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
-        1.0, 0.0, 0.0);
-    }
+    game.particleSystem.emitRandom(game.gl, heart.x, heart.y, 0.01, 0.1,
+      1.0, 0.0, 0.0, 50);
   }
 
   draw(gl, shader) {
@@ -838,7 +827,7 @@ class Heart {
     const dist = Math.sqrt(distX * distX + distY * distY);
 
     if (dist <= 20.0) {
-      game.player.collectHeart(game);
+      game.player.collectHeart(game, this);
       this.collected = true;
     }
   }
@@ -960,7 +949,7 @@ class Gem {
     const dist = Math.sqrt(distX * distX + distY * distY);
 
     if (dist <= 20.0) {
-      game.player.collectGem(game);
+      game.player.collectGem(game, this);
       this.collected = true;
     }
   }
@@ -984,14 +973,14 @@ class Gem {
 class GemCollection {
   constructor(gl, shader, count) {
     const vertices = new Float32Array([
-      -20.0, 0.0,
-      -13.0, -11.0,
-      -7.0, 0.0,
-      0.0, -11.0,
-      6.0, 0.0,
-      13.0, -11.0,
-      19.0, 0.0,
-      0.0, 25.0
+      -20.0, -7.0,
+      -13.0, -18.0,
+      -7.0, -7.0,
+      0.0, -18.0,
+      6.0, -7.0,
+      13.0, -18.0,
+      19.0, -7.0,
+      0.0, 18.0
     ]);
 
     const indices = new Uint16Array([
@@ -1099,7 +1088,7 @@ class Snake {
     const dirX = distX / dist;
     const dirY = distY / dist;
 
-    if (dist < 10.0) {
+    if (dist < 5.0) {
       game.player.damage(game, dirX, dirY);
     }
 
@@ -1272,8 +1261,8 @@ class CollectibleGemCollection {
       } while (room === game.startingRoom || room.containsGem);
 
       this.gems.push(new Gem(
-        (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
-        (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10,
+        (room.roomX + 2 + Math.random() * (room.roomW - 4)) * 10,
+        (room.roomY + 2 + Math.random() * (room.roomH - 4)) * 10,
         0.7));
 
       room.containsGem = true;
@@ -1320,8 +1309,8 @@ class CollectibleHeartCollection {
       } while (room === game.startingRoom || room.containsHeart);
 
       this.hearts.push(new Heart(game.heartCollection,
-        (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
-        (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10,
+        (room.roomX + 2 + Math.random() * (room.roomW - 4)) * 10,
+        (room.roomY + 2 + Math.random() * (room.roomH - 4)) * 10,
         0.7));
 
       room.containsHeart = true;
@@ -1575,20 +1564,54 @@ class ParticleSystem {
     this.elapsedTime += deltaTime;
   }
 
-  emit(gl, x, y, dx, dy, r, g, b) {
-    this.nextParticle = (this.nextParticle + 1) % MAX_PARTICLES;
-    this.particleCount = (this.particleCount + 1) % MAX_PARTICLES;
+  emit(gl, x, y, dx, dy, r, g, b, count) {
+    for (let i = 0; i < count; i++) {
+      this.nextParticle = (this.nextParticle + 1) % MAX_PARTICLES;
+      this.particleCount++;
 
-    let vertexIndex = this.nextParticle * this.shader.vertexSize;
+      if (this.particleCount > MAX_PARTICLES) {
+        this.particleCount = MAX_PARTICLES;
+      }
 
-    this.particles[vertexIndex++] = x;
-    this.particles[vertexIndex++] = y;
-    this.particles[vertexIndex++] = dx;
-    this.particles[vertexIndex++] = dy;
-    this.particles[vertexIndex++] = this.elapsedTime;
-    this.particles[vertexIndex++] = r;
-    this.particles[vertexIndex++] = g;
-    this.particles[vertexIndex++] = b;
+      let vertexIndex = this.nextParticle * this.shader.vertexSize;
+
+      this.particles[vertexIndex++] = x;
+      this.particles[vertexIndex++] = y;
+      this.particles[vertexIndex++] = dx;
+      this.particles[vertexIndex++] = dy;
+      this.particles[vertexIndex++] = this.elapsedTime;
+      this.particles[vertexIndex++] = r;
+      this.particles[vertexIndex++] = g;
+      this.particles[vertexIndex++] = b;
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.particles, gl.STATIC_DRAW);
+  }
+
+  emitRandom(gl, x, y, minSpeed, maxSpeed, r, g, b, count) {
+    for (let i = 0; i < count; i++) {
+      this.nextParticle = (this.nextParticle + 1) % MAX_PARTICLES;
+      this.particleCount++;
+
+      if (this.particleCount > MAX_PARTICLES) {
+        this.particleCount = MAX_PARTICLES;
+      }
+
+      let vertexIndex = this.nextParticle * this.shader.vertexSize;
+
+      const angle = Math.random() * Math.PI * 2.0;
+      const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+
+      this.particles[vertexIndex++] = x;
+      this.particles[vertexIndex++] = y;
+      this.particles[vertexIndex++] = Math.cos(angle) * speed;
+      this.particles[vertexIndex++] = Math.sin(angle) * speed;
+      this.particles[vertexIndex++] = this.elapsedTime;
+      this.particles[vertexIndex++] = r;
+      this.particles[vertexIndex++] = g;
+      this.particles[vertexIndex++] = b;
+    }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, this.particles, gl.STATIC_DRAW);

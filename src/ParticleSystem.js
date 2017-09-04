@@ -22,20 +22,54 @@ export default class ParticleSystem {
     this.elapsedTime += deltaTime;
   }
 
-  emit(gl, x, y, dx, dy, r, g, b) {
-    this.nextParticle = (this.nextParticle + 1) % MAX_PARTICLES;
-    this.particleCount = (this.particleCount + 1) % MAX_PARTICLES;
+  emit(gl, x, y, dx, dy, r, g, b, count) {
+    for (let i = 0; i < count; i++) {
+      this.nextParticle = (this.nextParticle + 1) % MAX_PARTICLES;
+      this.particleCount++;
 
-    let vertexIndex = this.nextParticle * this.shader.vertexSize;
+      if (this.particleCount > MAX_PARTICLES) {
+        this.particleCount = MAX_PARTICLES;
+      }
 
-    this.particles[vertexIndex++] = x;
-    this.particles[vertexIndex++] = y;
-    this.particles[vertexIndex++] = dx;
-    this.particles[vertexIndex++] = dy;
-    this.particles[vertexIndex++] = this.elapsedTime;
-    this.particles[vertexIndex++] = r;
-    this.particles[vertexIndex++] = g;
-    this.particles[vertexIndex++] = b;
+      let vertexIndex = this.nextParticle * this.shader.vertexSize;
+
+      this.particles[vertexIndex++] = x;
+      this.particles[vertexIndex++] = y;
+      this.particles[vertexIndex++] = dx;
+      this.particles[vertexIndex++] = dy;
+      this.particles[vertexIndex++] = this.elapsedTime;
+      this.particles[vertexIndex++] = r;
+      this.particles[vertexIndex++] = g;
+      this.particles[vertexIndex++] = b;
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.particles, gl.STATIC_DRAW);
+  }
+
+  emitRandom(gl, x, y, minSpeed, maxSpeed, r, g, b, count) {
+    for (let i = 0; i < count; i++) {
+      this.nextParticle = (this.nextParticle + 1) % MAX_PARTICLES;
+      this.particleCount++;
+
+      if (this.particleCount > MAX_PARTICLES) {
+        this.particleCount = MAX_PARTICLES;
+      }
+
+      let vertexIndex = this.nextParticle * this.shader.vertexSize;
+
+      const angle = Math.random() * Math.PI * 2.0;
+      const speed = minSpeed + Math.random() * (maxSpeed - minSpeed);
+
+      this.particles[vertexIndex++] = x;
+      this.particles[vertexIndex++] = y;
+      this.particles[vertexIndex++] = Math.cos(angle) * speed;
+      this.particles[vertexIndex++] = Math.sin(angle) * speed;
+      this.particles[vertexIndex++] = this.elapsedTime;
+      this.particles[vertexIndex++] = r;
+      this.particles[vertexIndex++] = g;
+      this.particles[vertexIndex++] = b;
+    }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, this.particles, gl.STATIC_DRAW);
