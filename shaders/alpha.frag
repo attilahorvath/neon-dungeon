@@ -1,4 +1,4 @@
-varying highp vec4 vertexColor;
+varying mediump vec4 vertexColor;
 
 void main() {
   gl_FragColor = vertexColor;

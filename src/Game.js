@@ -10,6 +10,7 @@ import CollectibleGemCollection from
   './entities/collectibles/CollectibleGemCollection';
 import FogOfWar from './FogOfWar';
 import PostProcessor from './PostProcessor';
+import ParticleSystem from './ParticleSystem';
 
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
@@ -75,6 +76,8 @@ export default class Game {
     this.guiPostProcessor = new PostProcessor(this.gl, this.canvas.width,
       this.canvas.height);
 
+    this.particleSystem = new ParticleSystem(this.gl);
+
     this.lastTimestamp = performance.now();
 
     this.shakeTimer = 0;
@@ -93,6 +96,8 @@ export default class Game {
 
     this.snakeCollection.update(deltaTime, this);
     this.collectibleGemCollection.update(this);
+
+    this.particleSystem.update(deltaTime);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -149,6 +154,10 @@ export default class Game {
     this.collectibleGemCollection.draw(this);
     this.player.draw(this.gl, this.basicShader);
 
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+
+    this.particleSystem.draw(this.gl, this.projection, this.view);
+
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
       this.guiPostProcessor.framebuffer);
     this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
@@ -161,7 +170,6 @@ export default class Game {
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, false);
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
     this.lightCone.draw(this.gl, this.projection, this.view, false);
     this.postProcessor.draw(this.gl);
     this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);

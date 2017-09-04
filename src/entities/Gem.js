@@ -23,8 +23,8 @@ export default class Gem {
 
     const dist = Math.sqrt(distX * distX + distY * distY);
 
-    if (dist < 10.0) {
-      game.player.collectGem();
+    if (dist <= 20.0) {
+      game.player.collectGem(game);
       this.collected = true;
     }
   }

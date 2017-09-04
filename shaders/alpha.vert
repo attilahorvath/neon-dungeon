@@ -6,7 +6,7 @@ uniform mediump vec3 color;
 attribute vec2 vertexPosition;
 attribute float vertexAlpha;
 
-varying highp vec4 vertexColor;
+varying mediump vec4 vertexColor;
 
 void main() {
   gl_Position = projection * view * model * vec4(vertexPosition, 0.0, 1.0);

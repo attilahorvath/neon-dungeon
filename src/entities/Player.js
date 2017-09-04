@@ -148,12 +148,24 @@ export default class Player {
     this.slidingY = slidingY;
 
     game.shake(500);
+
+    for (let i = 0; i < 50; i++) {
+      game.particleSystem.emit(game.gl, this.x, this.y,
+        -0.2 + Math.random() * 0.4, -0.2 + Math.random() * 0.4,
+        1.0, 0.0, 0.0);
+    }
   }
 
-  collectGem() {
+  collectGem(game) {
     this.gems++;
     this.gemTimer = 800;
     this.gemFlashTimer = 80;
+
+    for (let i = 0; i < 50; i++) {
+      game.particleSystem.emit(game.gl, this.x, this.y,
+        -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
+        1.0, 0.0, 1.0);
+    }
   }
 
   draw(gl, shader) {

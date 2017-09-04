@@ -43,18 +43,40 @@ export default class Sword {
       this.angle = this.swingBaseAngle - ((150.0 - this.swingTimer) / 150.0) *
         Math.PI * 2.0;
 
+      const endX = this.x + Math.cos(this.angle) * 20.0;
+      const endY = this.y + Math.sin(this.angle) * 20.0;
+
+      const particleAngle = this.angle + Math.PI / 2.0;
+
+      for (let i = 0; i < 2; i++) {
+        const particleDirX = Math.cos(particleAngle) * Math.random() * 0.1;
+        const particleDirY = Math.sin(particleAngle) * Math.random() * 0.1;
+
+        game.particleSystem.emit(game.gl, endX, endY,
+          particleDirX, particleDirY, 1.0, 0.0, 0.0, 1);
+      }
+
       for (const snake of game.snakeCollection.snakes) {
+        if (!snake.alive) {
+          continue;
+        }
+
         const dist1X = snake.x - this.x;
         const dist1Y = snake.y - this.y;
 
         const dist1 = Math.sqrt(dist1X * dist1X + dist1Y * dist1Y);
 
-        const dist2X = snake.x - (this.x + Math.cos(this.angle) * 20.0);
-        const dist2Y = snake.y - (this.y + Math.sin(this.angle) * 20.0);
+        const dist2X = snake.x - endX;
+        const dist2Y = snake.y - endY;
 
         const dist2 = Math.sqrt(dist2X * dist2X + dist2Y * dist2Y);
 
         if (dist1 <= 25.0 && dist2 <= 25.0) {
+          for (let i = 0; i < 50; i++) {
+            game.particleSystem.emit(game.gl, snake.x, snake.y,
+              -0.2 + Math.random() * 0.4, -0.2 + Math.random() * 0.4,
+              1.0, 0.0, 1.0);
+          }
           snake.alive = false;
         }
       }

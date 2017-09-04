@@ -420,18 +420,40 @@ class Sword {
       this.angle = this.swingBaseAngle - ((150.0 - this.swingTimer) / 150.0) *
         Math.PI * 2.0;
 
+      const endX = this.x + Math.cos(this.angle) * 20.0;
+      const endY = this.y + Math.sin(this.angle) * 20.0;
+
+      const particleAngle = this.angle + Math.PI / 2.0;
+
+      for (let i = 0; i < 2; i++) {
+        const particleDirX = Math.cos(particleAngle) * Math.random() * 0.1;
+        const particleDirY = Math.sin(particleAngle) * Math.random() * 0.1;
+
+        game.particleSystem.emit(game.gl, endX, endY,
+          particleDirX, particleDirY, 1.0, 0.0, 0.0, 1);
+      }
+
       for (const snake of game.snakeCollection.snakes) {
+        if (!snake.alive) {
+          continue;
+        }
+
         const dist1X = snake.x - this.x;
         const dist1Y = snake.y - this.y;
 
         const dist1 = Math.sqrt(dist1X * dist1X + dist1Y * dist1Y);
 
-        const dist2X = snake.x - (this.x + Math.cos(this.angle) * 20.0);
-        const dist2Y = snake.y - (this.y + Math.sin(this.angle) * 20.0);
+        const dist2X = snake.x - endX;
+        const dist2Y = snake.y - endY;
 
         const dist2 = Math.sqrt(dist2X * dist2X + dist2Y * dist2Y);
 
         if (dist1 <= 25.0 && dist2 <= 25.0) {
+          for (let i = 0; i < 50; i++) {
+            game.particleSystem.emit(game.gl, snake.x, snake.y,
+              -0.2 + Math.random() * 0.4, -0.2 + Math.random() * 0.4,
+              1.0, 0.0, 1.0);
+          }
           snake.alive = false;
         }
       }
@@ -613,12 +635,24 @@ class Player {
     this.slidingY = slidingY;
 
     game.shake(500);
+
+    for (let i = 0; i < 50; i++) {
+      game.particleSystem.emit(game.gl, this.x, this.y,
+        -0.2 + Math.random() * 0.4, -0.2 + Math.random() * 0.4,
+        1.0, 0.0, 0.0);
+    }
   }
 
-  collectGem() {
+  collectGem(game) {
     this.gems++;
     this.gemTimer = 800;
     this.gemFlashTimer = 80;
+
+    for (let i = 0; i < 50; i++) {
+      game.particleSystem.emit(game.gl, this.x, this.y,
+        -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
+        1.0, 0.0, 1.0);
+    }
   }
 
   draw(gl, shader) {
@@ -637,9 +671,9 @@ class Player {
   }
 }
 
-var vertexShaderSource$2 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump mat4 model;uniform mediump vec3 color;attribute vec2 vertexPosition;attribute float vertexAlpha;varying highp vec4 vertexColor;void main(){gl_Position=projection*view*model*vec4(vertexPosition,0.0,1.0);vertexColor=vec4(color,vertexAlpha);}";
+var vertexShaderSource$2 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump mat4 model;uniform mediump vec3 color;attribute vec2 vertexPosition;attribute float vertexAlpha;varying mediump vec4 vertexColor;void main(){gl_Position=projection*view*model*vec4(vertexPosition,0.0,1.0);vertexColor=vec4(color,vertexAlpha);}";
 
-var fragmentShaderSource$2 = "varying highp vec4 vertexColor;void main(){gl_FragColor=vertexColor;}";
+var fragmentShaderSource$2 = "varying mediump vec4 vertexColor;void main(){gl_FragColor=vertexColor;}";
 
 class ColorShader extends Shader {
   constructor(gl) {
@@ -864,8 +898,8 @@ class Gem {
 
     const dist = Math.sqrt(distX * distX + distY * distY);
 
-    if (dist < 10.0) {
-      game.player.collectGem();
+    if (dist <= 20.0) {
+      game.player.collectGem(game);
       this.collected = true;
     }
   }
@@ -1386,6 +1420,89 @@ class PostProcessor {
   }
 }
 
+var vertexShaderSource$5 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump float elapsedTime;attribute vec2 particlePosition;attribute vec2 particleVelocity;attribute float particleEmitted;attribute vec3 particleColor;varying mediump vec4 color;void main(){vec2 position=particlePosition+particleVelocity*(elapsedTime-particleEmitted);gl_Position=projection*view*vec4(position,0.0,1.0);color=vec4(particleColor,(1000.0-(elapsedTime-particleEmitted))/1000.0);}";
+
+var fragmentShaderSource$5 = "varying mediump vec4 color;void main(){gl_FragColor=color;}";
+
+class ParticleShader extends Shader {
+  constructor(gl) {
+    const uniforms = ['projection', 'view', 'elapsedTime'];
+    const attributes = ['particlePosition', 'particleVelocity',
+      'particleEmitted', 'particleColor'];
+
+    super(gl, vertexShaderSource$5, fragmentShaderSource$5, uniforms, attributes,
+      8);
+  }
+
+  use(gl) {
+    super.use(gl);
+
+    gl.vertexAttribPointer(this.particlePosition, 2, gl.FLOAT, false, 32, 0);
+    gl.vertexAttribPointer(this.particleVelocity, 2, gl.FLOAT, false, 32, 8);
+    gl.vertexAttribPointer(this.particleEmitted, 1, gl.FLOAT, false, 32, 16);
+    gl.vertexAttribPointer(this.particleColor, 3, gl.FLOAT, false, 32, 20);
+  }
+}
+
+const MAX_PARTICLES = 512;
+
+class ParticleSystem {
+  constructor(gl) {
+    this.shader = new ParticleShader(gl);
+
+    this.particles = new Float32Array(MAX_PARTICLES * this.shader.vertexSize);
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.particles, gl.STATIC_DRAW);
+
+    this.nextParticle = 0;
+    this.particleCount = 0;
+
+    this.elapsedTime = 0;
+  }
+
+  update(deltaTime) {
+    this.elapsedTime += deltaTime;
+  }
+
+  emit(gl, x, y, dx, dy, r, g, b) {
+    this.nextParticle = (this.nextParticle + 1) % MAX_PARTICLES;
+    this.particleCount = (this.particleCount + 1) % MAX_PARTICLES;
+
+    let vertexIndex = this.nextParticle * this.shader.vertexSize;
+
+    this.particles[vertexIndex++] = x;
+    this.particles[vertexIndex++] = y;
+    this.particles[vertexIndex++] = dx;
+    this.particles[vertexIndex++] = dy;
+    this.particles[vertexIndex++] = this.elapsedTime;
+    this.particles[vertexIndex++] = r;
+    this.particles[vertexIndex++] = g;
+    this.particles[vertexIndex++] = b;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, this.particles, gl.STATIC_DRAW);
+  }
+
+  draw(gl, projection, view) {
+    if (this.particleCount <= 0) {
+      return;
+    }
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+
+    this.shader.use(gl);
+
+    gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, view);
+
+    gl.uniform1f(this.shader.elapsedTime, this.elapsedTime);
+
+    gl.drawArrays(gl.POINTS, 0, this.particleCount);
+  }
+}
+
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
 
@@ -1450,6 +1567,8 @@ class Game {
     this.guiPostProcessor = new PostProcessor(this.gl, this.canvas.width,
       this.canvas.height);
 
+    this.particleSystem = new ParticleSystem(this.gl);
+
     this.lastTimestamp = performance.now();
 
     this.shakeTimer = 0;
@@ -1468,6 +1587,8 @@ class Game {
 
     this.snakeCollection.update(deltaTime, this);
     this.collectibleGemCollection.update(this);
+
+    this.particleSystem.update(deltaTime);
 
     this.cameraX = this.player.x - this.canvas.width / 2.0;
     this.cameraY = this.player.y - this.canvas.height / 2.0;
@@ -1524,6 +1645,10 @@ class Game {
     this.collectibleGemCollection.draw(this);
     this.player.draw(this.gl, this.basicShader);
 
+    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+
+    this.particleSystem.draw(this.gl, this.projection, this.view);
+
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
       this.guiPostProcessor.framebuffer);
     this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
@@ -1536,7 +1661,6 @@ class Game {
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     this.map.draw(this.gl, this.projection, this.view, false);
-    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
     this.lightCone.draw(this.gl, this.projection, this.view, false);
     this.postProcessor.draw(this.gl);
     this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
