@@ -42,9 +42,18 @@ export default class HeartCollection {
     ]);
 
     this.hearts = [];
+    this.heartX = 30.0;
 
     for (let i = 0; i < count; i++) {
-      this.hearts.push(new Heart(this, 30.0 + i * 50.0, 20.0));
+      this.hearts.push(new Heart(this, this.heartX, 20.0, 1.0));
+      this.heartX += 50.0;
+    }
+  }
+
+  update(player) {
+    if (player.lives > this.hearts.length) {
+      this.hearts.push(new Heart(this, this.heartX, 20.0, 1.0));
+      this.heartX += 50.0;
     }
   }
 
@@ -57,9 +66,11 @@ export default class HeartCollection {
     gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
     const lastFlashing = player.invincibilityTimer > 0 && player.visible;
+    const newFlashing = player.newHeartTimer <= 0 || player.newHeartVisible;
 
     for (let i = 0; i < this.hearts.length; i++) {
-      this.hearts[i].draw(gl, shader, player.lives >= i + 1 ||
+      this.hearts[i].draw(gl, shader, player.lives > i + 1 ||
+        (newFlashing && i === player.lives - 1) ||
         (lastFlashing && i === player.lives));
     }
   }

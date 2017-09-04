@@ -4,14 +4,14 @@ export default class Sword {
 
     let vertexIndex = 0;
 
+    vertices[vertexIndex++] = 2.0;
     vertices[vertexIndex++] = 5.0;
-    vertices[vertexIndex++] = 3.0;
 
     vertices[vertexIndex++] = 20.0;
     vertices[vertexIndex++] = 0.0;
 
     vertices[vertexIndex++] = 5.0;
-    vertices[vertexIndex++] = -3.0;
+    vertices[vertexIndex++] = 0.0;
 
     vertices[vertexIndex++] = 20.0;
     vertices[vertexIndex++] = 0.0;

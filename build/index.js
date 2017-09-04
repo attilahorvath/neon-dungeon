@@ -115,6 +115,7 @@ class MapNode {
 
     this.snakes = 0;
     this.containsGem = false;
+    this.containsHeart = false;
   }
 
   isLeaf() {
@@ -381,14 +382,14 @@ class Sword {
 
     let vertexIndex = 0;
 
+    vertices[vertexIndex++] = 2.0;
     vertices[vertexIndex++] = 5.0;
-    vertices[vertexIndex++] = 3.0;
 
     vertices[vertexIndex++] = 20.0;
     vertices[vertexIndex++] = 0.0;
 
     vertices[vertexIndex++] = 5.0;
-    vertices[vertexIndex++] = -3.0;
+    vertices[vertexIndex++] = 0.0;
 
     vertices[vertexIndex++] = 20.0;
     vertices[vertexIndex++] = 0.0;
@@ -536,6 +537,10 @@ class Player {
     this.gemTimer = 0;
     this.gemFlashTimer = 0;
     this.gemVisible = true;
+
+    this.newHeartTimer = 0;
+    this.newHeartFlashTimer = 0;
+    this.newHeartVisible = true;
   }
 
   validPosition(map, x, y) {
@@ -615,6 +620,18 @@ class Player {
       }
     }
 
+    if (this.newHeartTimer > 0) {
+      this.newHeartTimer -= deltaTime;
+
+      if (this.newHeartFlashTimer > 0) {
+        this.newHeartFlashTimer -= deltaTime;
+      } else {
+        this.newHeartFlashTimer = 80;
+
+        this.newHeartVisible = !this.newHeartVisible;
+      }
+    }
+
     if (game.input.wasJustPressed(game.input.ACTION)) {
       this.sword.swing();
     }
@@ -652,6 +669,18 @@ class Player {
       game.particleSystem.emit(game.gl, this.x, this.y,
         -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
         1.0, 0.0, 1.0);
+    }
+  }
+
+  collectHeart(game) {
+    this.lives++;
+    this.newHeartTimer = 800;
+    this.newHeartFlashTimer = 80;
+
+    for (let i = 0; i < 50; i++) {
+      game.particleSystem.emit(game.gl, this.x, this.y,
+        -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
+        1.0, 0.0, 0.0);
     }
   }
 
@@ -784,20 +813,42 @@ class LightCone {
 }
 
 class Heart {
-  constructor(heartCollection, x, y) {
+  constructor(heartCollection, x, y, scale) {
     this.x = x;
     this.y = y;
     this.heartCollection = heartCollection;
 
     this.model = new Float32Array([
-      1.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0,
+      scale, 0.0, 0.0, 0.0,
+      0.0, scale, 0.0, 0.0,
       0.0, 0.0, 1.0, 0.0,
       x, y, 0.0, 1.0
     ]);
+
+    this.collected = false;
+  }
+
+  update(game) {
+    if (this.collected) {
+      return;
+    }
+
+    const distX = game.player.x - this.x;
+    const distY = game.player.y - this.y;
+
+    const dist = Math.sqrt(distX * distX + distY * distY);
+
+    if (dist <= 20.0) {
+      game.player.collectHeart(game);
+      this.collected = true;
+    }
   }
 
   draw(gl, shader, filled) {
+    if (this.collected) {
+      return;
+    }
+
     gl.uniformMatrix4fv(shader.model, false, this.model);
 
     if (filled) {
@@ -850,9 +901,18 @@ class HeartCollection {
     ]);
 
     this.hearts = [];
+    this.heartX = 30.0;
 
     for (let i = 0; i < count; i++) {
-      this.hearts.push(new Heart(this, 30.0 + i * 50.0, 20.0));
+      this.hearts.push(new Heart(this, this.heartX, 20.0, 1.0));
+      this.heartX += 50.0;
+    }
+  }
+
+  update(player) {
+    if (player.lives > this.hearts.length) {
+      this.hearts.push(new Heart(this, this.heartX, 20.0, 1.0));
+      this.heartX += 50.0;
     }
   }
 
@@ -865,9 +925,11 @@ class HeartCollection {
     gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
     const lastFlashing = player.invincibilityTimer > 0 && player.visible;
+    const newFlashing = player.newHeartTimer <= 0 || player.newHeartVisible;
 
     for (let i = 0; i < this.hearts.length; i++) {
-      this.hearts[i].draw(gl, shader, player.lives >= i + 1 ||
+      this.hearts[i].draw(gl, shader, player.lives > i + 1 ||
+        (newFlashing && i === player.lives - 1) ||
         (lastFlashing && i === player.lives));
     }
   }
@@ -1121,7 +1183,7 @@ class SnakeCollection {
 
       do {
         room = game.map.root.getRandomLeaf();
-      } while (room === game.startingRoom || room.snakes > 3);
+      } while (room === game.startingRoom || room.snakes > 4);
 
       this.snakes.push(new Snake(this,
         (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
@@ -1239,6 +1301,54 @@ class CollectibleGemCollection {
         gem.y >= game.cameraY - 30 &&
         gem.y <= game.cameraY + game.canvas.height + 30) {
         gem.draw(game.gl, game.basicShader, false);
+      }
+    }
+  }
+}
+
+class CollectibleHeartCollection {
+  constructor(game, count) {
+    this.vertexBuffer = game.heartCollection.vertexBuffer;
+    this.indexBuffer = game.heartCollection.indexBuffer;
+
+    this.hearts = [];
+
+    for (let i = 0; i < count; i++) {
+      let room = null;
+
+      do {
+        room = game.map.root.getRandomLeaf();
+      } while (room === game.startingRoom || room.containsHeart);
+
+      this.hearts.push(new Heart(game.heartCollection,
+        (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
+        (room.roomY + 1 + Math.random() * (room.roomH - 2)) * 10,
+        0.7));
+
+      room.containsHeart = true;
+    }
+  }
+
+  update(game) {
+    for (const gem of this.hearts) {
+      gem.update(game);
+    }
+  }
+
+  draw(game) {
+    game.gl.bindBuffer(game.gl.ARRAY_BUFFER, this.vertexBuffer);
+    game.gl.bindBuffer(game.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
+    game.basicShader.use(game.gl);
+
+    game.gl.uniform4f(game.basicShader.color, 1.0, 0.0, 0.0, 1.0);
+
+    for (const gem of this.hearts) {
+      if (gem.x >= game.cameraX - 30 &&
+        gem.x <= game.cameraX + game.canvas.width + 30 &&
+        gem.y >= game.cameraY - 30 &&
+        gem.y <= game.cameraY + game.canvas.height + 30) {
+        gem.draw(game.gl, game.basicShader, true);
       }
     }
   }
@@ -1506,8 +1616,9 @@ class ParticleSystem {
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
 
-const NUM_SNAKES = 75;
+const NUM_SNAKES = 150;
 const NUM_GEMS = 5;
+const NUM_HEARTS = 5;
 
 class Game {
   constructor() {
@@ -1557,6 +1668,8 @@ class Game {
 
     this.collectibleGemCollection = new CollectibleGemCollection(this,
       NUM_GEMS);
+    this.collectibleHeartCollection = new CollectibleHeartCollection(this,
+      NUM_HEARTS);
 
     this.lightCone = new LightCone(this.gl);
 
@@ -1587,6 +1700,9 @@ class Game {
 
     this.snakeCollection.update(deltaTime, this);
     this.collectibleGemCollection.update(this);
+    this.collectibleHeartCollection.update(this);
+
+    this.heartCollection.update(this.player);
 
     this.particleSystem.update(deltaTime);
 
@@ -1643,6 +1759,7 @@ class Game {
 
     this.snakeCollection.draw(this);
     this.collectibleGemCollection.draw(this);
+    this.collectibleHeartCollection.draw(this);
     this.player.draw(this.gl, this.basicShader);
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);

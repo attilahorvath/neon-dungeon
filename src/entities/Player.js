@@ -49,6 +49,10 @@ export default class Player {
     this.gemTimer = 0;
     this.gemFlashTimer = 0;
     this.gemVisible = true;
+
+    this.newHeartTimer = 0;
+    this.newHeartFlashTimer = 0;
+    this.newHeartVisible = true;
   }
 
   validPosition(map, x, y) {
@@ -128,6 +132,18 @@ export default class Player {
       }
     }
 
+    if (this.newHeartTimer > 0) {
+      this.newHeartTimer -= deltaTime;
+
+      if (this.newHeartFlashTimer > 0) {
+        this.newHeartFlashTimer -= deltaTime;
+      } else {
+        this.newHeartFlashTimer = 80;
+
+        this.newHeartVisible = !this.newHeartVisible;
+      }
+    }
+
     if (game.input.wasJustPressed(game.input.ACTION)) {
       this.sword.swing();
     }
@@ -165,6 +181,18 @@ export default class Player {
       game.particleSystem.emit(game.gl, this.x, this.y,
         -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
         1.0, 0.0, 1.0);
+    }
+  }
+
+  collectHeart(game) {
+    this.lives++;
+    this.newHeartTimer = 800;
+    this.newHeartFlashTimer = 80;
+
+    for (let i = 0; i < 50; i++) {
+      game.particleSystem.emit(game.gl, this.x, this.y,
+        -0.1 + Math.random() * 0.2, -0.1 + Math.random() * 0.2,
+        1.0, 0.0, 0.0);
     }
   }
 

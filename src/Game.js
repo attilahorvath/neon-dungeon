@@ -8,6 +8,8 @@ import GemCollection from './entities/GemCollection';
 import SnakeCollection from './entities/enemies/SnakeCollection';
 import CollectibleGemCollection from
   './entities/collectibles/CollectibleGemCollection';
+import CollectibleHeartCollection from
+  './entities/collectibles/CollectibleHeartCollection';
 import FogOfWar from './FogOfWar';
 import PostProcessor from './PostProcessor';
 import ParticleSystem from './ParticleSystem';
@@ -15,8 +17,9 @@ import ParticleSystem from './ParticleSystem';
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
 
-const NUM_SNAKES = 75;
+const NUM_SNAKES = 150;
 const NUM_GEMS = 5;
+const NUM_HEARTS = 5;
 
 export default class Game {
   constructor() {
@@ -66,6 +69,8 @@ export default class Game {
 
     this.collectibleGemCollection = new CollectibleGemCollection(this,
       NUM_GEMS);
+    this.collectibleHeartCollection = new CollectibleHeartCollection(this,
+      NUM_HEARTS);
 
     this.lightCone = new LightCone(this.gl);
 
@@ -96,6 +101,9 @@ export default class Game {
 
     this.snakeCollection.update(deltaTime, this);
     this.collectibleGemCollection.update(this);
+    this.collectibleHeartCollection.update(this);
+
+    this.heartCollection.update(this.player);
 
     this.particleSystem.update(deltaTime);
 
@@ -152,6 +160,7 @@ export default class Game {
 
     this.snakeCollection.draw(this);
     this.collectibleGemCollection.draw(this);
+    this.collectibleHeartCollection.draw(this);
     this.player.draw(this.gl, this.basicShader);
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
