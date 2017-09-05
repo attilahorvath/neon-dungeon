@@ -657,7 +657,7 @@ class Player {
     this.gemTimer = 800;
     this.gemFlashTimer = 80;
 
-    game.particleSystem.emitRandom(game.gl, gem.x, gem.y, 0.01, 0.1,
+    game.particleSystem.emitRandom(game.gl, gem.x, gem.y, 0.07, 0.1,
       1.0, 0.0, 1.0, 50);
   }
 
@@ -666,7 +666,7 @@ class Player {
     this.newHeartTimer = 800;
     this.newHeartFlashTimer = 80;
 
-    game.particleSystem.emitRandom(game.gl, heart.x, heart.y, 0.01, 0.1,
+    game.particleSystem.emitRandom(game.gl, heart.x, heart.y, 0.07, 0.1,
       1.0, 0.0, 0.0, 50);
   }
 
@@ -1635,6 +1635,277 @@ class ParticleSystem {
   }
 }
 
+var vertexShaderSource$6 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump mat4 model;attribute vec2 vertexPosition;attribute vec4 vertexColor;varying mediump vec4 color;void main(){gl_Position=projection*view*model*vec4(vertexPosition,0.0,1.0);color=vertexColor;}";
+
+var fragmentShaderSource$6 = "uniform mediump float maxAlpha;varying mediump vec4 color;void main(){gl_FragColor=vec4(color.rgb,1.0)*(1.0-step(maxAlpha,color.a));}";
+
+class TitleShader extends Shader {
+  constructor(gl) {
+    const uniforms = ['projection', 'view', 'model', 'maxAlpha'];
+    const attributes = ['vertexPosition', 'vertexColor'];
+
+    super(gl, vertexShaderSource$6, fragmentShaderSource$6, uniforms, attributes,
+      6);
+  }
+
+  use(gl) {
+    super.use(gl);
+
+    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 24, 0);
+    gl.vertexAttribPointer(this.vertexColor, 4, gl.FLOAT, false, 24, 8);
+  }
+}
+
+class NeonTitle {
+  constructor(gl, x, y) {
+    this.shader = new TitleShader(gl);
+
+    const vertices = new Float32Array([
+      0.0, 300.0, 0.0, 0.0, 1.0, 0.0 / 4.0,
+      0.0, 0.0, 0.0, 0.0, 1.0, 0.33 / 4.0,
+      150.0, 300.0, 0.0, 0.0, 1.0, 0.66 / 4.0,
+      150.0, 0.0, 0.0, 0.0, 1.0, 1.0 / 4.0,
+
+      390.0, 0.0, 1.0, 0.0, 1.0, 0.25 + 0.0 / 4.0,
+      210.0, 0.0, 1.0, 0.0, 1.0, 0.25 + 0.25 / 4.0,
+      210.0, 300.0, 1.0, 0.0, 1.0, 0.25 + 0.5 / 4.0,
+      390.0, 300.0, 1.0, 0.0, 1.0, 0.25 + 0.75 / 4.0,
+      210.0, 150.0, 1.0, 0.0, 1.0, 0.25 + 0.75 / 4.0,
+      390.0, 150.0, 1.0, 0.0, 1.0, 0.25 + 1.0 / 4.0,
+
+      450.0, 0.0, 1.0, 1.0, 0.0, 0.5 + 0.0 / 4.0,
+      450.0, 300.0, 1.0, 1.0, 0.0, 0.5 + 0.25 / 4.0,
+      600.0, 300.0, 1.0, 1.0, 0.0, 0.5 + 0.5 / 4.0,
+      600.0, 0.0, 1.0, 1.0, 0.0, 0.5 + 0.75 / 4.0,
+      450.0, 0.0, 1.0, 1.0, 0.0, 0.5 + 1.0 / 4.0,
+
+      660.0, 300.0, 1.0, 0.0, 0.0, 0.75 + 0.0 / 4.0,
+      660.0, 0.0, 1.0, 0.0, 0.0, 0.75 + 0.33 / 4.0,
+      810.0, 300.0, 1.0, 0.0, 0.0, 0.75 + 0.66 / 4.0,
+      810.0, 0.0, 1.0, 0.0, 0.0, 0.75 + 1.0 / 4.0
+    ]);
+
+    this.indices = new Uint16Array([
+      0, 1,
+      1, 2,
+      2, 3,
+
+      4, 5,
+      5, 6,
+      6, 7,
+      8, 9,
+
+      10, 11,
+      11, 12,
+      12, 13,
+      13, 14,
+
+      15, 16,
+      16, 17,
+      17, 18
+    ]);
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
+    this.x = x;
+    this.y = y;
+
+    this.model = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      this.x, this.y, 0.0, 1.0
+    ]);
+
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.elapsedTime = 0;
+    this.maxAlpha = 1.0;
+  }
+
+  update(deltaTime) {
+    this.elapsedTime += deltaTime;
+    this.maxAlpha = this.elapsedTime / 4000.0;
+  }
+
+  draw(gl, projection, view) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
+    this.shader.use(gl);
+
+    gl.uniformMatrix4fv(this.shader.projection, false, projection);
+    gl.uniformMatrix4fv(this.shader.view, false, this.view);
+    gl.uniformMatrix4fv(this.shader.model, false, this.model);
+
+    gl.uniform1f(this.shader.maxAlpha, this.maxAlpha);
+
+    gl.drawElements(gl.LINES, this.indices.length, gl.UNSIGNED_SHORT, 0);
+  }
+}
+
+class DungeonTitle {
+  constructor(gl, x, y) {
+    const vertices = new Float32Array([
+      0.0, 0.0,
+      0.0, 200.0,
+      70.0, 100.0,
+      70.0, 200.0,
+
+      100.0, 0.0,
+      100.0, 200.0,
+      170.0, 200.0,
+      170.0, 0.0,
+
+      200.0, 0.0,
+      200.0, 200.0,
+      270.0, 0.0,
+      270.0, 200.0,
+
+      300.0, 0.0,
+      370.0, 0.0,
+      300.0, 200.0,
+      370.0, 200.0,
+      370.0, 100.0,
+      330.0, 100.0,
+
+      400.0, 0.0,
+      470.0, 0.0,
+      400.0, 200.0,
+      470.0, 200.0,
+      400.0, 100.0,
+      470.0, 100.0,
+
+      500.0, 0.0,
+      570.0, 0.0,
+      500.0, 200.0,
+      570.0, 200.0,
+
+      600.0, 0.0,
+      600.0, 200.0,
+      670.0, 0.0,
+      670.0, 200.0
+    ]);
+
+    this.indices = new Uint16Array([
+      0, 1,
+      0, 2,
+      2, 3,
+      3, 1,
+
+      4, 5,
+      5, 6,
+      6, 7,
+
+      8, 9,
+      8, 11,
+      10, 11,
+
+      12, 13,
+      12, 14,
+      14, 15,
+      15, 16,
+      16, 17,
+
+      18, 19,
+      18, 20,
+      20, 21,
+      22, 23,
+
+      24, 25,
+      24, 26,
+      25, 27,
+      26, 27,
+
+      28, 29,
+      28, 31,
+      30, 31
+    ]);
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, this.indices, gl.STATIC_DRAW);
+
+    this.x = x;
+    this.y = y;
+
+    this.model = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      this.x, this.y, 0.0, 1.0
+    ]);
+
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.elapsedTime = 0;
+    this.alpha = 0.0;
+  }
+
+  update(deltaTime) {
+    this.elapsedTime += deltaTime;
+    this.alpha = this.elapsedTime / 4000.0;
+  }
+
+  draw(gl, shader, projection, view) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
+    shader.use(gl);
+
+    gl.uniformMatrix4fv(shader.projection, false, projection);
+    gl.uniformMatrix4fv(shader.view, false, this.view);
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+
+    gl.uniform4f(shader.color, 1.0, 1.0, 1.0, this.alpha);
+
+    gl.drawElements(gl.LINES, this.indices.length, gl.UNSIGNED_SHORT, 0);
+  }
+}
+
+class TitleScreen {
+  constructor(gl) {
+    this.neonTitle = new NeonTitle(gl, 200.0, 20.0);
+    this.dungeonTitle = new DungeonTitle(gl, 280.0, 400.0);
+  }
+
+  update(deltaTime, game) {
+    if (game.input.wasJustReleased(game.input.ACTION)) {
+      game.activeScreen = null;
+
+      return;
+    }
+
+    this.neonTitle.update(deltaTime);
+    this.dungeonTitle.update(deltaTime);
+  }
+
+  draw(gl, shader, projection, view) {
+    this.neonTitle.draw(gl, projection, view);
+    this.dungeonTitle.draw(gl, shader, projection, view);
+  }
+}
+
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
 
@@ -1673,6 +1944,7 @@ class Game {
     this.input = new Input();
 
     this.basicShader = new BasicShader(this.gl);
+
     this.map = new Map(this.gl, this.canvas.width * 4, this.canvas.height * 4);
 
     this.startingRoom = this.map.root.getRandomLeaf();
@@ -1704,6 +1976,8 @@ class Game {
 
     this.particleSystem = new ParticleSystem(this.gl);
 
+    this.activeScreen = new TitleScreen(this.gl, this.basicShader);
+
     this.lastTimestamp = performance.now();
 
     this.shakeTimer = 0;
@@ -1717,19 +1991,23 @@ class Game {
 
     this.input.update();
 
-    this.player.update(deltaTime, this);
-    this.lightCone.update(deltaTime, this);
+    if (this.activeScreen) {
+      this.activeScreen.update(deltaTime, this);
+    } else {
+      this.player.update(deltaTime, this);
+      this.lightCone.update(deltaTime, this);
 
-    this.snakeCollection.update(deltaTime, this);
-    this.collectibleGemCollection.update(this);
-    this.collectibleHeartCollection.update(this);
+      this.snakeCollection.update(deltaTime, this);
+      this.collectibleGemCollection.update(this);
+      this.collectibleHeartCollection.update(this);
 
-    this.heartCollection.update(this.player);
+      this.heartCollection.update(this.player);
 
-    this.particleSystem.update(deltaTime);
+      this.particleSystem.update(deltaTime);
 
-    this.cameraX = this.player.x - this.canvas.width / 2.0;
-    this.cameraY = this.player.y - this.canvas.height / 2.0;
+      this.cameraX = this.player.x - this.canvas.width / 2.0;
+      this.cameraY = this.player.y - this.canvas.height / 2.0;
+    }
 
     if (this.shakeTimer > 0) {
       this.shakeTimer -= deltaTime;
@@ -1793,17 +2071,26 @@ class Game {
     this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-    this.heartCollection.draw(this.gl, this.basicShader, this.player);
-    this.gemCollection.draw(this.gl, this.basicShader, this.player);
+    if (this.activeScreen) {
+      this.activeScreen.draw(this.gl, this.basicShader, this.projection,
+        this.view);
+    } else {
+      this.heartCollection.draw(this.gl, this.basicShader, this.player);
+      this.gemCollection.draw(this.gl, this.basicShader, this.player);
+    }
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.map.draw(this.gl, this.projection, this.view, false);
-    this.lightCone.draw(this.gl, this.projection, this.view, false);
-    this.postProcessor.draw(this.gl);
-    this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
-    this.fogOfWar.draw(this.gl, this.projection, this.view);
+
+    if (!this.activeScreen) {
+      this.map.draw(this.gl, this.projection, this.view, false);
+      this.lightCone.draw(this.gl, this.projection, this.view, false);
+      this.postProcessor.draw(this.gl);
+
+      this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
+      this.fogOfWar.draw(this.gl, this.projection, this.view);
+    }
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 

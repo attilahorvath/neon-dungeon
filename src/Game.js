@@ -13,6 +13,7 @@ import CollectibleHeartCollection from
 import FogOfWar from './FogOfWar';
 import PostProcessor from './PostProcessor';
 import ParticleSystem from './ParticleSystem';
+import TitleScreen from './screens/TitleScreen';
 
 const SCREEN_WIDTH = 1280;
 const SCREEN_HEIGHT = 720;
@@ -52,6 +53,7 @@ export default class Game {
     this.input = new Input();
 
     this.basicShader = new BasicShader(this.gl);
+
     this.map = new Map(this.gl, this.canvas.width * 4, this.canvas.height * 4);
 
     this.startingRoom = this.map.root.getRandomLeaf();
@@ -83,6 +85,8 @@ export default class Game {
 
     this.particleSystem = new ParticleSystem(this.gl);
 
+    this.activeScreen = new TitleScreen(this.gl, this.basicShader);
+
     this.lastTimestamp = performance.now();
 
     this.shakeTimer = 0;
@@ -96,19 +100,23 @@ export default class Game {
 
     this.input.update();
 
-    this.player.update(deltaTime, this);
-    this.lightCone.update(deltaTime, this);
+    if (this.activeScreen) {
+      this.activeScreen.update(deltaTime, this);
+    } else {
+      this.player.update(deltaTime, this);
+      this.lightCone.update(deltaTime, this);
 
-    this.snakeCollection.update(deltaTime, this);
-    this.collectibleGemCollection.update(this);
-    this.collectibleHeartCollection.update(this);
+      this.snakeCollection.update(deltaTime, this);
+      this.collectibleGemCollection.update(this);
+      this.collectibleHeartCollection.update(this);
 
-    this.heartCollection.update(this.player);
+      this.heartCollection.update(this.player);
 
-    this.particleSystem.update(deltaTime);
+      this.particleSystem.update(deltaTime);
 
-    this.cameraX = this.player.x - this.canvas.width / 2.0;
-    this.cameraY = this.player.y - this.canvas.height / 2.0;
+      this.cameraX = this.player.x - this.canvas.width / 2.0;
+      this.cameraY = this.player.y - this.canvas.height / 2.0;
+    }
 
     if (this.shakeTimer > 0) {
       this.shakeTimer -= deltaTime;
@@ -172,17 +180,26 @@ export default class Game {
     this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-    this.heartCollection.draw(this.gl, this.basicShader, this.player);
-    this.gemCollection.draw(this.gl, this.basicShader, this.player);
+    if (this.activeScreen) {
+      this.activeScreen.draw(this.gl, this.basicShader, this.projection,
+        this.view);
+    } else {
+      this.heartCollection.draw(this.gl, this.basicShader, this.player);
+      this.gemCollection.draw(this.gl, this.basicShader, this.player);
+    }
 
     this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.map.draw(this.gl, this.projection, this.view, false);
-    this.lightCone.draw(this.gl, this.projection, this.view, false);
-    this.postProcessor.draw(this.gl);
-    this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
-    this.fogOfWar.draw(this.gl, this.projection, this.view);
+
+    if (!this.activeScreen) {
+      this.map.draw(this.gl, this.projection, this.view, false);
+      this.lightCone.draw(this.gl, this.projection, this.view, false);
+      this.postProcessor.draw(this.gl);
+
+      this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
+      this.fogOfWar.draw(this.gl, this.projection, this.view);
+    }
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 

@@ -174,7 +174,7 @@ export default class Player {
     this.gemTimer = 800;
     this.gemFlashTimer = 80;
 
-    game.particleSystem.emitRandom(game.gl, gem.x, gem.y, 0.01, 0.1,
+    game.particleSystem.emitRandom(game.gl, gem.x, gem.y, 0.07, 0.1,
       1.0, 0.0, 1.0, 50);
   }
 
@@ -183,7 +183,7 @@ export default class Player {
     this.newHeartTimer = 800;
     this.newHeartFlashTimer = 80;
 
-    game.particleSystem.emitRandom(game.gl, heart.x, heart.y, 0.01, 0.1,
+    game.particleSystem.emitRandom(game.gl, heart.x, heart.y, 0.07, 0.1,
       1.0, 0.0, 0.0, 50);
   }
 
