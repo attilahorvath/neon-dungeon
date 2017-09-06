@@ -1088,7 +1088,7 @@ class Snake {
     const dirX = distX / dist;
     const dirY = distY / dist;
 
-    if (dist < 5.0) {
+    if (dist < 7.0) {
       game.player.damage(game, dirX, dirY);
     }
 
@@ -1171,7 +1171,7 @@ class SnakeCollection {
 
       do {
         room = game.map.root.getRandomLeaf();
-      } while (room === game.startingRoom || room.snakes > 4);
+      } while (room === game.startingRoom || room.snakes > 6);
 
       this.snakes.push(new Snake(this,
         (room.roomX + 1 + Math.random() * (room.roomW - 2)) * 10,
@@ -1945,7 +1945,7 @@ class Game {
 
     this.basicShader = new BasicShader(this.gl);
 
-    this.map = new Map(this.gl, this.canvas.width * 4, this.canvas.height * 4);
+    this.map = new Map(this.gl, this.canvas.width * 3, this.canvas.height * 3);
 
     this.startingRoom = this.map.root.getRandomLeaf();
 

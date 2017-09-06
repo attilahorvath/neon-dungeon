@@ -54,7 +54,7 @@ export default class Game {
 
     this.basicShader = new BasicShader(this.gl);
 
-    this.map = new Map(this.gl, this.canvas.width * 4, this.canvas.height * 4);
+    this.map = new Map(this.gl, this.canvas.width * 3, this.canvas.height * 3);
 
     this.startingRoom = this.map.root.getRandomLeaf();
 
