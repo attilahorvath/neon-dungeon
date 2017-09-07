@@ -488,12 +488,12 @@ class Sword {
     gl.uniformMatrix4fv(shader.model, false, this.model);
     gl.uniform4f(shader.color, 1.0, 1.0, 0.0, 1.0);
 
-    gl.drawArrays(gl.LINE_STRIP, 0, 3);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }
 
 const PLAYER_RADIUS = 5;
-const PLAYER_SEGMENTS = 10;
+const PLAYER_SEGMENTS = 11;
 const PLAYER_SPEED = 0.2;
 const PLAYER_LIVES = 3;
 
@@ -503,12 +503,18 @@ class Player {
 
     let vertexIndex = 0;
 
-    for (let i = 0; i < PLAYER_SEGMENTS; i++) {
-      const angle = ((Math.PI * 2.0) / PLAYER_SEGMENTS) * i;
+    vertices[vertexIndex++] = 0.0;
+    vertices[vertexIndex++] = 0.0;
+
+    for (let i = 0; i < PLAYER_SEGMENTS - 2; i++) {
+      const angle = ((Math.PI * 2.0) / (PLAYER_SEGMENTS - 2)) * i;
 
       vertices[vertexIndex++] = Math.cos(angle) * PLAYER_RADIUS;
       vertices[vertexIndex++] = Math.sin(angle) * PLAYER_RADIUS;
     }
+
+    vertices[vertexIndex++] = vertices[2];
+    vertices[vertexIndex++] = vertices[3];
 
     this.vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
@@ -693,7 +699,7 @@ class Player {
     gl.uniformMatrix4fv(shader.model, false, this.model);
     gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
-    gl.drawArrays(gl.LINE_LOOP, 0, PLAYER_SEGMENTS);
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, PLAYER_SEGMENTS);
   }
 }
 

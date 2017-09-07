@@ -110,6 +110,6 @@ export default class Sword {
     gl.uniformMatrix4fv(shader.model, false, this.model);
     gl.uniform4f(shader.color, 1.0, 1.0, 0.0, 1.0);
 
-    gl.drawArrays(gl.LINE_STRIP, 0, 3);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }
