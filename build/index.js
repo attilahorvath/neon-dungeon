@@ -1967,7 +1967,7 @@ const SCREEN_HEIGHT = 720;
 
 const NUM_SNAKES = 150;
 const NUM_GEMS = 5;
-const NUM_HEARTS = 5;
+const NUM_HEARTS = 3;
 
 class Game {
   constructor() {
