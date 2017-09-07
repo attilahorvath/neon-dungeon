@@ -4,7 +4,7 @@ export default class NeonTitle {
   constructor(gl, x, y) {
     this.shader = new TitleShader(gl);
 
-    const vertices = new Float32Array([
+    this.vertices = new Float32Array([
       0.0, 300.0, 0.0, 0.0, 1.0, 0.0 / 4.0,
       0.0, 0.0, 0.0, 0.0, 1.0, 0.33 / 4.0,
       150.0, 300.0, 0.0, 0.0, 1.0, 0.66 / 4.0,
@@ -51,7 +51,7 @@ export default class NeonTitle {
 
     this.vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
 
     this.indexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
@@ -78,9 +78,42 @@ export default class NeonTitle {
     this.maxAlpha = 1.0;
   }
 
-  update(deltaTime) {
+  update(deltaTime, game) {
     this.elapsedTime += deltaTime;
     this.maxAlpha = this.elapsedTime / 4000.0;
+
+    for (let i = 0; i < this.indices.length; i += 2) {
+      const start = this.indices[i];
+      const end = this.indices[i + 1];
+
+      const startAlpha = this.vertices[start * this.shader.vertexSize + 5];
+      const endAlpha = this.vertices[end * this.shader.vertexSize + 5];
+
+      if (endAlpha > this.maxAlpha) {
+        let startVertexIndex = start * this.shader.vertexSize;
+        let endVertexIndex = end * this.shader.vertexSize;
+
+        const startX = this.vertices[startVertexIndex++];
+        const startY = this.vertices[startVertexIndex++];
+
+        const r = this.vertices[startVertexIndex++];
+        const g = this.vertices[startVertexIndex++];
+        const b = this.vertices[startVertexIndex++];
+
+        const endX = this.vertices[endVertexIndex++];
+        const endY = this.vertices[endVertexIndex++];
+
+        const progress = (this.maxAlpha - startAlpha) / (endAlpha - startAlpha);
+
+        const x = startX + (endX - startX) * progress;
+        const y = startY + (endY - startY) * progress;
+
+        game.particleSystem.emitRandom(game.gl, this.x + x, this.y + y,
+          0.1, 0.2, r, g, b, 50);
+
+        break;
+      }
+    }
   }
 
   draw(gl, projection, view) {

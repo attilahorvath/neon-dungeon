@@ -1,13 +1,22 @@
 body {
-  width: 100vw;
   height: 100vh;
-  display: table-cell;
-  vertical-align: middle;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0;
   background-color: black;
 }
 
+#canvas-container {
+  position: relative;
+}
+
 canvas {
-  display: block;
-  margin: 0 auto;
   cursor: none;
+}
+
+#textCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
 }

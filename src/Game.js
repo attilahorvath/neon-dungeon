@@ -24,12 +24,26 @@ const NUM_HEARTS = 5;
 
 export default class Game {
   constructor() {
+    this.canvasContainer = document.createElement('div');
+    this.canvasContainer.id = 'canvas-container';
+    document.body.appendChild(this.canvasContainer);
+
     this.canvas = document.createElement('canvas');
     this.canvas.width = SCREEN_WIDTH;
     this.canvas.height = SCREEN_HEIGHT;
-    document.body.appendChild(this.canvas);
-
+    this.canvasContainer.appendChild(this.canvas);
     this.gl = this.canvas.getContext('webgl');
+
+    this.textCanvas = document.createElement('canvas');
+    this.textCanvas.width = SCREEN_WIDTH;
+    this.textCanvas.height = SCREEN_HEIGHT;
+    this.textCanvas.id = 'textCanvas';
+    this.canvasContainer.appendChild(this.textCanvas);
+    this.textContext = this.textCanvas.getContext('2d');
+    this.textContext.font = '48px Verdana, Arial, Helvetica, sans-serif';
+    this.textContext.textAlign = 'center';
+    this.textContext.fillStyle = 'white';
+
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.enable(this.gl.BLEND);
 
@@ -87,22 +101,30 @@ export default class Game {
 
     this.activeScreen = new TitleScreen(this.gl, this.basicShader);
 
-    this.lastTimestamp = performance.now();
-
     this.shakeTimer = 0;
+
+    this.explanationTimer = 2000;
+
+    this.lastTimestamp = performance.now();
 
     this.frames = 0;
     this.frameTimer = 0;
   }
 
   update(timestamp) {
-    const deltaTime = timestamp - this.lastTimestamp;
+    let deltaTime = timestamp - this.lastTimestamp;
+
+    if (deltaTime < 0) {
+      deltaTime = 0;
+    }
 
     this.input.update();
 
     if (this.activeScreen) {
       this.activeScreen.update(deltaTime, this);
-    } else {
+    }
+
+    if (!this.activeScreen) {
       this.player.update(deltaTime, this);
       this.lightCone.update(deltaTime, this);
 
@@ -116,6 +138,12 @@ export default class Game {
 
       this.cameraX = this.player.x - this.canvas.width / 2.0;
       this.cameraY = this.player.y - this.canvas.height / 2.0;
+
+      if (this.explanationTimer > 0) {
+        this.explanationTimer -= deltaTime;
+      }
+    } else {
+      this.particleSystem.update(deltaTime);
     }
 
     if (this.shakeTimer > 0) {
@@ -145,31 +173,40 @@ export default class Game {
   }
 
   draw() {
-    this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
+    this.textContext.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fogOfWar.framebuffer);
-    this.gl.viewport(0, 0, this.fogOfWar.width, this.fogOfWar.height);
-    this.lightCone.draw(this.gl, this.fogOfWar.projection, this.fogOfWar.view,
-      true);
+    if (!this.activeScreen) {
+      this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
 
-    this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fogOfWar.framebuffer);
+      this.gl.viewport(0, 0, this.fogOfWar.width, this.fogOfWar.height);
+      this.lightCone.draw(this.gl, this.fogOfWar.projection, this.fogOfWar.view,
+        true);
 
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
-      this.postProcessor.framebuffer);
-    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.map.draw(this.gl, this.projection, this.view, true);
+      this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
 
-    this.basicShader.use(this.gl);
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+        this.postProcessor.framebuffer);
+      this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+      this.map.draw(this.gl, this.projection, this.view, true);
 
-    this.gl.uniformMatrix4fv(this.basicShader.projection, false,
-      this.projection);
-    this.gl.uniformMatrix4fv(this.basicShader.view, false, this.view);
+      this.basicShader.use(this.gl);
 
-    this.snakeCollection.draw(this);
-    this.collectibleGemCollection.draw(this);
-    this.collectibleHeartCollection.draw(this);
-    this.player.draw(this.gl, this.basicShader);
+      this.gl.uniformMatrix4fv(this.basicShader.projection, false,
+        this.projection);
+      this.gl.uniformMatrix4fv(this.basicShader.view, false, this.view);
+
+      this.snakeCollection.draw(this);
+      this.collectibleGemCollection.draw(this);
+      this.collectibleHeartCollection.draw(this);
+      this.player.draw(this.gl, this.basicShader);
+    } else {
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+        this.postProcessor.framebuffer);
+      this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    }
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
@@ -181,8 +218,8 @@ export default class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     if (this.activeScreen) {
-      this.activeScreen.draw(this.gl, this.basicShader, this.projection,
-        this.view);
+      this.activeScreen.draw(this.gl, this.textContext, this.basicShader,
+        this.projection, this.view);
     } else {
       this.heartCollection.draw(this.gl, this.basicShader, this.player);
       this.gemCollection.draw(this.gl, this.basicShader, this.player);
@@ -199,10 +236,19 @@ export default class Game {
 
       this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
       this.fogOfWar.draw(this.gl, this.projection, this.view);
+    } else {
+      this.postProcessor.draw(this.gl);
     }
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
     this.guiPostProcessor.draw(this.gl);
+
+    if (this.explanationTimer > 0 && !this.activeScreen) {
+      this.textContext.fillText('COLLECT THE GEMS',
+        SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+      this.textContext.fillText('FIND THE EXIT',
+        SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 48);
+    }
   }
 }

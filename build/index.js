@@ -398,6 +398,8 @@ class Sword {
     this.x = player.x;
     this.y = player.y;
 
+    this.enemiesHit = 0;
+
     this.angle = player.angle + Math.PI / 2.0;
 
     this.model = new Float32Array([
@@ -432,7 +434,7 @@ class Sword {
       }
 
       for (const snake of game.snakeCollection.snakes) {
-        if (!snake.alive) {
+        if (!snake.alive || this.enemiesHit >= 2) {
           continue;
         }
 
@@ -447,6 +449,8 @@ class Sword {
         const dist2 = Math.sqrt(dist2X * dist2X + dist2Y * dist2Y);
 
         if (dist1 <= 25.0 && dist2 <= 25.0) {
+          this.enemiesHit++;
+
           snake.alive = false;
 
           game.particleSystem.emitRandom(game.gl, this.x, this.y, 0.01, 0.2,
@@ -467,8 +471,13 @@ class Sword {
   }
 
   swing() {
+    if (this.swingTimer > 0) {
+      return;
+    }
+
     this.swingTimer = 150;
     this.swingBaseAngle = this.angle;
+    this.enemiesHit = 0;
   }
 
   draw(gl, shader) {
@@ -1660,7 +1669,7 @@ class NeonTitle {
   constructor(gl, x, y) {
     this.shader = new TitleShader(gl);
 
-    const vertices = new Float32Array([
+    this.vertices = new Float32Array([
       0.0, 300.0, 0.0, 0.0, 1.0, 0.0 / 4.0,
       0.0, 0.0, 0.0, 0.0, 1.0, 0.33 / 4.0,
       150.0, 300.0, 0.0, 0.0, 1.0, 0.66 / 4.0,
@@ -1707,7 +1716,7 @@ class NeonTitle {
 
     this.vertexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, this.vertices, gl.STATIC_DRAW);
 
     this.indexBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
@@ -1734,9 +1743,42 @@ class NeonTitle {
     this.maxAlpha = 1.0;
   }
 
-  update(deltaTime) {
+  update(deltaTime, game) {
     this.elapsedTime += deltaTime;
     this.maxAlpha = this.elapsedTime / 4000.0;
+
+    for (let i = 0; i < this.indices.length; i += 2) {
+      const start = this.indices[i];
+      const end = this.indices[i + 1];
+
+      const startAlpha = this.vertices[start * this.shader.vertexSize + 5];
+      const endAlpha = this.vertices[end * this.shader.vertexSize + 5];
+
+      if (endAlpha > this.maxAlpha) {
+        let startVertexIndex = start * this.shader.vertexSize;
+        let endVertexIndex = end * this.shader.vertexSize;
+
+        const startX = this.vertices[startVertexIndex++];
+        const startY = this.vertices[startVertexIndex++];
+
+        const r = this.vertices[startVertexIndex++];
+        const g = this.vertices[startVertexIndex++];
+        const b = this.vertices[startVertexIndex++];
+
+        const endX = this.vertices[endVertexIndex++];
+        const endY = this.vertices[endVertexIndex++];
+
+        const progress = (this.maxAlpha - startAlpha) / (endAlpha - startAlpha);
+
+        const x = startX + (endX - startX) * progress;
+        const y = startY + (endY - startY) * progress;
+
+        game.particleSystem.emitRandom(game.gl, this.x + x, this.y + y,
+          0.1, 0.2, r, g, b, 50);
+
+        break;
+      }
+    }
   }
 
   draw(gl, projection, view) {
@@ -1886,7 +1928,10 @@ class DungeonTitle {
 class TitleScreen {
   constructor(gl) {
     this.neonTitle = new NeonTitle(gl, 200.0, 20.0);
-    this.dungeonTitle = new DungeonTitle(gl, 280.0, 400.0);
+    this.dungeonTitle = new DungeonTitle(gl, 300.0, 400.0);
+
+    this.textTimer = 4800;
+    this.showText = false;
   }
 
   update(deltaTime, game) {
@@ -1896,13 +1941,24 @@ class TitleScreen {
       return;
     }
 
-    this.neonTitle.update(deltaTime);
+    this.neonTitle.update(deltaTime, game);
     this.dungeonTitle.update(deltaTime);
+
+    this.textTimer -= deltaTime;
+
+    if (this.textTimer <= 0) {
+      this.textTimer = 800;
+      this.showText = !this.showText;
+    }
   }
 
-  draw(gl, shader, projection, view) {
+  draw(gl, textContext, shader, projection, view) {
     this.neonTitle.draw(gl, projection, view);
     this.dungeonTitle.draw(gl, shader, projection, view);
+
+    if (this.showText) {
+      textContext.fillText('PRESS SPACE TO BEGIN', 640, 700);
+    }
   }
 }
 
@@ -1915,12 +1971,26 @@ const NUM_HEARTS = 5;
 
 class Game {
   constructor() {
+    this.canvasContainer = document.createElement('div');
+    this.canvasContainer.id = 'canvas-container';
+    document.body.appendChild(this.canvasContainer);
+
     this.canvas = document.createElement('canvas');
     this.canvas.width = SCREEN_WIDTH;
     this.canvas.height = SCREEN_HEIGHT;
-    document.body.appendChild(this.canvas);
-
+    this.canvasContainer.appendChild(this.canvas);
     this.gl = this.canvas.getContext('webgl');
+
+    this.textCanvas = document.createElement('canvas');
+    this.textCanvas.width = SCREEN_WIDTH;
+    this.textCanvas.height = SCREEN_HEIGHT;
+    this.textCanvas.id = 'textCanvas';
+    this.canvasContainer.appendChild(this.textCanvas);
+    this.textContext = this.textCanvas.getContext('2d');
+    this.textContext.font = '48px Verdana, Arial, Helvetica, sans-serif';
+    this.textContext.textAlign = 'center';
+    this.textContext.fillStyle = 'white';
+
     this.gl.clearColor(0.0, 0.0, 0.0, 1.0);
     this.gl.enable(this.gl.BLEND);
 
@@ -1978,22 +2048,30 @@ class Game {
 
     this.activeScreen = new TitleScreen(this.gl, this.basicShader);
 
-    this.lastTimestamp = performance.now();
-
     this.shakeTimer = 0;
+
+    this.explanationTimer = 2000;
+
+    this.lastTimestamp = performance.now();
 
     this.frames = 0;
     this.frameTimer = 0;
   }
 
   update(timestamp) {
-    const deltaTime = timestamp - this.lastTimestamp;
+    let deltaTime = timestamp - this.lastTimestamp;
+
+    if (deltaTime < 0) {
+      deltaTime = 0;
+    }
 
     this.input.update();
 
     if (this.activeScreen) {
       this.activeScreen.update(deltaTime, this);
-    } else {
+    }
+
+    if (!this.activeScreen) {
       this.player.update(deltaTime, this);
       this.lightCone.update(deltaTime, this);
 
@@ -2007,6 +2085,12 @@ class Game {
 
       this.cameraX = this.player.x - this.canvas.width / 2.0;
       this.cameraY = this.player.y - this.canvas.height / 2.0;
+
+      if (this.explanationTimer > 0) {
+        this.explanationTimer -= deltaTime;
+      }
+    } else {
+      this.particleSystem.update(deltaTime);
     }
 
     if (this.shakeTimer > 0) {
@@ -2036,31 +2120,40 @@ class Game {
   }
 
   draw() {
-    this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
+    this.textContext.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fogOfWar.framebuffer);
-    this.gl.viewport(0, 0, this.fogOfWar.width, this.fogOfWar.height);
-    this.lightCone.draw(this.gl, this.fogOfWar.projection, this.fogOfWar.view,
-      true);
+    if (!this.activeScreen) {
+      this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
 
-    this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.fogOfWar.framebuffer);
+      this.gl.viewport(0, 0, this.fogOfWar.width, this.fogOfWar.height);
+      this.lightCone.draw(this.gl, this.fogOfWar.projection, this.fogOfWar.view,
+        true);
 
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
-      this.postProcessor.framebuffer);
-    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-    this.map.draw(this.gl, this.projection, this.view, true);
+      this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
 
-    this.basicShader.use(this.gl);
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+        this.postProcessor.framebuffer);
+      this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+      this.map.draw(this.gl, this.projection, this.view, true);
 
-    this.gl.uniformMatrix4fv(this.basicShader.projection, false,
-      this.projection);
-    this.gl.uniformMatrix4fv(this.basicShader.view, false, this.view);
+      this.basicShader.use(this.gl);
 
-    this.snakeCollection.draw(this);
-    this.collectibleGemCollection.draw(this);
-    this.collectibleHeartCollection.draw(this);
-    this.player.draw(this.gl, this.basicShader);
+      this.gl.uniformMatrix4fv(this.basicShader.projection, false,
+        this.projection);
+      this.gl.uniformMatrix4fv(this.basicShader.view, false, this.view);
+
+      this.snakeCollection.draw(this);
+      this.collectibleGemCollection.draw(this);
+      this.collectibleHeartCollection.draw(this);
+      this.player.draw(this.gl, this.basicShader);
+    } else {
+      this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+        this.postProcessor.framebuffer);
+      this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+      this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    }
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
@@ -2072,8 +2165,8 @@ class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     if (this.activeScreen) {
-      this.activeScreen.draw(this.gl, this.basicShader, this.projection,
-        this.view);
+      this.activeScreen.draw(this.gl, this.textContext, this.basicShader,
+        this.projection, this.view);
     } else {
       this.heartCollection.draw(this.gl, this.basicShader, this.player);
       this.gemCollection.draw(this.gl, this.basicShader, this.player);
@@ -2090,11 +2183,20 @@ class Game {
 
       this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
       this.fogOfWar.draw(this.gl, this.projection, this.view);
+    } else {
+      this.postProcessor.draw(this.gl);
     }
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
     this.guiPostProcessor.draw(this.gl);
+
+    if (this.explanationTimer > 0 && !this.activeScreen) {
+      this.textContext.fillText('COLLECT THE GEMS',
+        SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2);
+      this.textContext.fillText('FIND THE EXIT',
+        SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 48);
+    }
   }
 }
 

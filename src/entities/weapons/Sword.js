@@ -20,6 +20,8 @@ export default class Sword {
     this.x = player.x;
     this.y = player.y;
 
+    this.enemiesHit = 0;
+
     this.angle = player.angle + Math.PI / 2.0;
 
     this.model = new Float32Array([
@@ -54,7 +56,7 @@ export default class Sword {
       }
 
       for (const snake of game.snakeCollection.snakes) {
-        if (!snake.alive) {
+        if (!snake.alive || this.enemiesHit >= 2) {
           continue;
         }
 
@@ -69,6 +71,8 @@ export default class Sword {
         const dist2 = Math.sqrt(dist2X * dist2X + dist2Y * dist2Y);
 
         if (dist1 <= 25.0 && dist2 <= 25.0) {
+          this.enemiesHit++;
+
           snake.alive = false;
 
           game.particleSystem.emitRandom(game.gl, this.x, this.y, 0.01, 0.2,
@@ -89,8 +93,13 @@ export default class Sword {
   }
 
   swing() {
+    if (this.swingTimer > 0) {
+      return;
+    }
+
     this.swingTimer = 150;
     this.swingBaseAngle = this.angle;
+    this.enemiesHit = 0;
   }
 
   draw(gl, shader) {
