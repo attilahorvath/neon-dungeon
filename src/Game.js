@@ -10,6 +10,7 @@ import CollectibleGemCollection from
   './entities/collectibles/CollectibleGemCollection';
 import CollectibleHeartCollection from
   './entities/collectibles/CollectibleHeartCollection';
+import Exit from './entities/Exit';
 import FogOfWar from './FogOfWar';
 import PostProcessor from './PostProcessor';
 import ParticleSystem from './ParticleSystem';
@@ -68,6 +69,24 @@ export default class Game {
 
     this.basicShader = new BasicShader(this.gl);
 
+    this.reset();
+
+    this.postProcessor = new PostProcessor(this.gl, this.canvas.width,
+      this.canvas.height);
+    this.guiPostProcessor = new PostProcessor(this.gl, this.canvas.width,
+      this.canvas.height);
+
+    this.particleSystem = new ParticleSystem(this.gl);
+
+    this.activeScreen = new TitleScreen(this.gl, this.basicShader);
+
+    this.lastTimestamp = performance.now();
+
+    this.frames = 0;
+    this.frameTimer = 0;
+  }
+
+  reset() {
     this.map = new Map(this.gl, this.canvas.width * 3, this.canvas.height * 3);
 
     this.startingRoom = this.map.root.getRandomLeaf();
@@ -79,7 +98,8 @@ export default class Game {
     this.heartCollection = new HeartCollection(this.gl, this.basicShader,
       this.player.lives);
 
-    this.gemCollection = new GemCollection(this.gl, this.basicShader, NUM_GEMS);
+    this.gemCollection = new GemCollection(this.gl, this.basicShader,
+      30.0, 80.0, NUM_GEMS, 1.0);
 
     this.snakeCollection = new SnakeCollection(this, NUM_SNAKES);
 
@@ -88,27 +108,15 @@ export default class Game {
     this.collectibleHeartCollection = new CollectibleHeartCollection(this,
       NUM_HEARTS);
 
+    this.exit = new Exit(this);
+
     this.lightCone = new LightCone(this.gl);
 
     this.fogOfWar = new FogOfWar(this.gl, this.map.width, this.map.height);
 
-    this.postProcessor = new PostProcessor(this.gl, this.canvas.width,
-      this.canvas.height);
-    this.guiPostProcessor = new PostProcessor(this.gl, this.canvas.width,
-      this.canvas.height);
-
-    this.particleSystem = new ParticleSystem(this.gl);
-
-    this.activeScreen = new TitleScreen(this.gl, this.basicShader);
-
     this.shakeTimer = 0;
 
     this.explanationTimer = 2000;
-
-    this.lastTimestamp = performance.now();
-
-    this.frames = 0;
-    this.frameTimer = 0;
   }
 
   update(timestamp) {
@@ -134,6 +142,8 @@ export default class Game {
 
       this.heartCollection.update(this.player);
 
+      this.exit.update(this);
+
       this.particleSystem.update(deltaTime);
 
       this.cameraX = this.player.x - this.canvas.width / 2.0;
@@ -143,6 +153,9 @@ export default class Game {
         this.explanationTimer -= deltaTime;
       }
     } else {
+      this.cameraX = 0.0;
+      this.cameraY = 0.0;
+
       this.particleSystem.update(deltaTime);
     }
 
@@ -200,7 +213,8 @@ export default class Game {
       this.snakeCollection.draw(this);
       this.collectibleGemCollection.draw(this);
       this.collectibleHeartCollection.draw(this);
-      this.player.draw(this.gl, this.basicShader);
+      this.exit.draw(this.gl, this.basicShader);
+      this.player.draw(this.gl, this.textContext, this.basicShader);
     } else {
       this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
         this.postProcessor.framebuffer);

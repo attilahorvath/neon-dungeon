@@ -116,6 +116,7 @@ class MapNode {
     this.snakes = 0;
     this.containsGem = false;
     this.containsHeart = false;
+    this.containsExit = false;
   }
 
   isLeaf() {
@@ -492,6 +493,176 @@ class Sword {
   }
 }
 
+class Gem {
+  constructor(x, y, scale) {
+    this.x = x;
+    this.y = y;
+
+    this.model = new Float32Array([
+      scale, 0.0, 0.0, 0.0,
+      0.0, scale, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      x, y, 0.0, 1.0
+    ]);
+
+    this.collected = false;
+  }
+
+  update(game) {
+    if (this.collected) {
+      return;
+    }
+
+    const distX = game.player.x - this.x;
+    const distY = game.player.y - this.y;
+
+    const dist = Math.sqrt(distX * distX + distY * distY);
+
+    if (dist <= 20.0) {
+      game.player.collectGem(game, this);
+      this.collected = true;
+    }
+  }
+
+  draw(gl, shader, filled) {
+    if (this.collected) {
+      return;
+    }
+
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+
+    if (filled) {
+      gl.drawElements(gl.TRIANGLES, 24, gl.UNSIGNED_SHORT, 0);
+    } else {
+      gl.drawElements(gl.LINES, 30, gl.UNSIGNED_SHORT,
+        Uint16Array.BYTES_PER_ELEMENT * 24);
+    }
+  }
+}
+
+class GemCollection {
+  constructor(gl, shader, x, y, count, scale) {
+    const vertices = new Float32Array([
+      -20.0, -7.0,
+      -13.0, -18.0,
+      -7.0, -7.0,
+      0.0, -18.0,
+      6.0, -7.0,
+      13.0, -18.0,
+      19.0, -7.0,
+      0.0, 18.0
+    ]);
+
+    const indices = new Uint16Array([
+      1, 0, 2,
+      3, 1, 2,
+      3, 2, 4,
+      5, 3, 4,
+      5, 4, 6,
+      2, 0, 7,
+      4, 2, 7,
+      6, 4, 7,
+
+      0, 1,
+      1, 2,
+      0, 2,
+      1, 3,
+      2, 3,
+      2, 4,
+      3, 5,
+      3, 4,
+      4, 5,
+      5, 6,
+      4, 6,
+      0, 7,
+      2, 7,
+      4, 7,
+      6, 7
+    ]);
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.gems = [];
+
+    for (let i = 0; i < count; i++) {
+      this.gems.push(new Gem(x + i * 50.0, y, scale));
+    }
+  }
+
+  draw(gl, shader, player) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
+    shader.use(gl);
+
+    gl.uniformMatrix4fv(shader.view, false, this.view);
+    gl.uniform4f(shader.color, 1.0, 0.0, 1.0, 1.0);
+
+    if (player) {
+      const lastFlashing = player.gemTimer <= 0 || player.gemVisible;
+
+      for (let i = 0; i < this.gems.length; i++) {
+        this.gems[i].draw(gl, shader, player.gems > i + 1 ||
+          (lastFlashing && i === player.gems - 1));
+      }
+    } else {
+      for (const gem of this.gems) {
+        gem.draw(gl, shader, false);
+      }
+    }
+  }
+}
+
+class VictoryScreen {
+  constructor(gl, shader) {
+    this.gemCollection = new GemCollection(gl, shader, 640.0, 330.0, 1, 12.0);
+
+    this.particleTimer = 100 + Math.random() * 1000;
+  }
+
+  update(deltaTime, game) {
+    if (game.input.wasJustReleased(game.input.ACTION)) {
+      game.reset();
+      game.activeScreen = null;
+
+      return;
+    }
+
+    this.particleTimer -= deltaTime;
+
+    if (this.particleTimer <= 0) {
+      this.particleTimer = 100 + Math.random() * 1000;
+      game.particleSystem.emitRandom(game.gl,
+        Math.random() * 1280, Math.random() * 720, 0.01, 0.2,
+        1.0, 0.0, 1.0, 50);
+    }
+  }
+
+  draw(gl, textContext, shader, projection, view) {
+    shader.use(gl);
+
+    gl.uniformMatrix4fv(shader.projection, false, projection);
+
+    this.gemCollection.draw(gl, shader, null);
+
+    textContext.fillText('VICTORY!', 640, 50);
+    textContext.fillText('THANKS FOR PLAYING!', 640, 700);
+  }
+}
+
 const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 11;
 const PLAYER_SPEED = 0.2;
@@ -551,6 +722,8 @@ class Player {
     this.newHeartTimer = 0;
     this.newHeartFlashTimer = 0;
     this.newHeartVisible = true;
+
+    this.exitTextVisible = false;
   }
 
   validPosition(map, x, y) {
@@ -642,6 +815,8 @@ class Player {
       }
     }
 
+    this.exitTextVisible = false;
+
     if (game.input.wasJustPressed(game.input.ACTION)) {
       this.sword.swing();
     }
@@ -685,7 +860,19 @@ class Player {
       1.0, 0.0, 0.0, 50);
   }
 
-  draw(gl, shader) {
+  touchExit(game) {
+    if (this.gems < 5) {
+      this.exitTextVisible = true;
+    } else {
+      game.activeScreen = new VictoryScreen(game.gl, game.basicShader);
+    }
+  }
+
+  draw(gl, textContext, shader) {
+    if (this.exitTextVisible) {
+      textContext.fillText('COLLECT THE GEMS FIRST', 640, 360);
+    }
+
     if (!this.visible) {
       return;
     }
@@ -934,133 +1121,6 @@ class HeartCollection {
       this.hearts[i].draw(gl, shader, player.lives > i + 1 ||
         (newFlashing && i === player.lives - 1) ||
         (lastFlashing && i === player.lives));
-    }
-  }
-}
-
-class Gem {
-  constructor(x, y, scale) {
-    this.x = x;
-    this.y = y;
-
-    this.model = new Float32Array([
-      scale, 0.0, 0.0, 0.0,
-      0.0, scale, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      x, y, 0.0, 1.0
-    ]);
-
-    this.collected = false;
-  }
-
-  update(game) {
-    if (this.collected) {
-      return;
-    }
-
-    const distX = game.player.x - this.x;
-    const distY = game.player.y - this.y;
-
-    const dist = Math.sqrt(distX * distX + distY * distY);
-
-    if (dist <= 20.0) {
-      game.player.collectGem(game, this);
-      this.collected = true;
-    }
-  }
-
-  draw(gl, shader, filled) {
-    if (this.collected) {
-      return;
-    }
-
-    gl.uniformMatrix4fv(shader.model, false, this.model);
-
-    if (filled) {
-      gl.drawElements(gl.TRIANGLES, 24, gl.UNSIGNED_SHORT, 0);
-    } else {
-      gl.drawElements(gl.LINES, 30, gl.UNSIGNED_SHORT,
-        Uint16Array.BYTES_PER_ELEMENT * 24);
-    }
-  }
-}
-
-class GemCollection {
-  constructor(gl, shader, count) {
-    const vertices = new Float32Array([
-      -20.0, -7.0,
-      -13.0, -18.0,
-      -7.0, -7.0,
-      0.0, -18.0,
-      6.0, -7.0,
-      13.0, -18.0,
-      19.0, -7.0,
-      0.0, 18.0
-    ]);
-
-    const indices = new Uint16Array([
-      1, 0, 2,
-      3, 1, 2,
-      3, 2, 4,
-      5, 3, 4,
-      5, 4, 6,
-      2, 0, 7,
-      4, 2, 7,
-      6, 4, 7,
-
-      0, 1,
-      1, 2,
-      0, 2,
-      1, 3,
-      2, 3,
-      2, 4,
-      3, 5,
-      3, 4,
-      4, 5,
-      5, 6,
-      4, 6,
-      0, 7,
-      2, 7,
-      4, 7,
-      6, 7
-    ]);
-
-    this.vertexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    this.indexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-
-    this.view = new Float32Array([
-      1.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0
-    ]);
-
-    this.gems = [];
-
-    for (let i = 0; i < count; i++) {
-      this.gems.push(new Gem(30.0 + i * 50.0, 80.0, 1.0));
-    }
-  }
-
-  draw(gl, shader, player) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
-
-    shader.use(gl);
-
-    gl.uniformMatrix4fv(shader.view, false, this.view);
-    gl.uniform4f(shader.color, 1.0, 0.0, 1.0, 1.0);
-
-    const lastFlashing = player.gemTimer <= 0 || player.gemVisible;
-
-    for (let i = 0; i < this.gems.length; i++) {
-      this.gems[i].draw(gl, shader, player.gems > i + 1 ||
-        (lastFlashing && i === player.gems - 1));
     }
   }
 }
@@ -1354,6 +1414,86 @@ class CollectibleHeartCollection {
         gem.draw(game.gl, game.basicShader, true);
       }
     }
+  }
+}
+
+class Exit {
+  constructor(game) {
+    const vertices = new Float32Array([
+      -15.0, -5.0,
+      -15.0, -15.0,
+      15.0, -15.0,
+      15.0, 15.0,
+      -15.0, 15.0,
+      -15.0, 5.0,
+
+      -20.0, 0.0,
+      0.0, 0.0,
+      -5.0, -5.0,
+      -5.0, 5.0
+    ]);
+
+    const indices = new Uint16Array([
+      0, 1,
+      1, 2,
+      2, 3,
+      3, 4,
+      4, 5,
+
+      6, 7,
+      7, 8,
+      7, 9
+    ]);
+
+    this.vertexBuffer = game.gl.createBuffer();
+    game.gl.bindBuffer(game.gl.ARRAY_BUFFER, this.vertexBuffer);
+    game.gl.bufferData(game.gl.ARRAY_BUFFER, vertices, game.gl.STATIC_DRAW);
+
+    this.indexBuffer = game.gl.createBuffer();
+    game.gl.bindBuffer(game.gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+    game.gl.bufferData(game.gl.ELEMENT_ARRAY_BUFFER, indices,
+      game.gl.STATIC_DRAW);
+
+    let room = null;
+
+    do {
+      room = game.map.root.getRandomLeaf();
+    } while (room === game.startingRoom || room.containsExit);
+
+    this.x = (room.roomX + 2 + Math.random() * (room.roomW - 4)) * 10;
+    this.y = (room.roomY + 2 + Math.random() * (room.roomH - 4)) * 10;
+
+    room.containsExit = true;
+
+    this.model = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      this.x, this.y, 0.0, 1.0
+    ]);
+  }
+
+  update(game) {
+    const distX = game.player.x - this.x;
+    const distY = game.player.y - this.y;
+
+    const dist = Math.sqrt(distX * distX + distY * distY);
+
+    if (dist <= 20.0) {
+      game.player.touchExit(game);
+    }
+  }
+
+  draw(gl, shader) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
+
+    shader.use(gl);
+
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+    gl.uniform4f(shader.color, 1.0, 1.0, 0.0, 1.0);
+
+    gl.drawElements(gl.LINES, 16, gl.UNSIGNED_SHORT, 0);
   }
 }
 
@@ -2021,6 +2161,24 @@ class Game {
 
     this.basicShader = new BasicShader(this.gl);
 
+    this.reset();
+
+    this.postProcessor = new PostProcessor(this.gl, this.canvas.width,
+      this.canvas.height);
+    this.guiPostProcessor = new PostProcessor(this.gl, this.canvas.width,
+      this.canvas.height);
+
+    this.particleSystem = new ParticleSystem(this.gl);
+
+    this.activeScreen = new TitleScreen(this.gl, this.basicShader);
+
+    this.lastTimestamp = performance.now();
+
+    this.frames = 0;
+    this.frameTimer = 0;
+  }
+
+  reset() {
     this.map = new Map(this.gl, this.canvas.width * 3, this.canvas.height * 3);
 
     this.startingRoom = this.map.root.getRandomLeaf();
@@ -2032,7 +2190,8 @@ class Game {
     this.heartCollection = new HeartCollection(this.gl, this.basicShader,
       this.player.lives);
 
-    this.gemCollection = new GemCollection(this.gl, this.basicShader, NUM_GEMS);
+    this.gemCollection = new GemCollection(this.gl, this.basicShader,
+      30.0, 80.0, NUM_GEMS, 1.0);
 
     this.snakeCollection = new SnakeCollection(this, NUM_SNAKES);
 
@@ -2041,27 +2200,15 @@ class Game {
     this.collectibleHeartCollection = new CollectibleHeartCollection(this,
       NUM_HEARTS);
 
+    this.exit = new Exit(this);
+
     this.lightCone = new LightCone(this.gl);
 
     this.fogOfWar = new FogOfWar(this.gl, this.map.width, this.map.height);
 
-    this.postProcessor = new PostProcessor(this.gl, this.canvas.width,
-      this.canvas.height);
-    this.guiPostProcessor = new PostProcessor(this.gl, this.canvas.width,
-      this.canvas.height);
-
-    this.particleSystem = new ParticleSystem(this.gl);
-
-    this.activeScreen = new TitleScreen(this.gl, this.basicShader);
-
     this.shakeTimer = 0;
 
     this.explanationTimer = 2000;
-
-    this.lastTimestamp = performance.now();
-
-    this.frames = 0;
-    this.frameTimer = 0;
   }
 
   update(timestamp) {
@@ -2087,6 +2234,8 @@ class Game {
 
       this.heartCollection.update(this.player);
 
+      this.exit.update(this);
+
       this.particleSystem.update(deltaTime);
 
       this.cameraX = this.player.x - this.canvas.width / 2.0;
@@ -2096,6 +2245,9 @@ class Game {
         this.explanationTimer -= deltaTime;
       }
     } else {
+      this.cameraX = 0.0;
+      this.cameraY = 0.0;
+
       this.particleSystem.update(deltaTime);
     }
 
@@ -2153,7 +2305,8 @@ class Game {
       this.snakeCollection.draw(this);
       this.collectibleGemCollection.draw(this);
       this.collectibleHeartCollection.draw(this);
-      this.player.draw(this.gl, this.basicShader);
+      this.exit.draw(this.gl, this.basicShader);
+      this.player.draw(this.gl, this.textContext, this.basicShader);
     } else {
       this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
         this.postProcessor.framebuffer);

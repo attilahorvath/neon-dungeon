@@ -1,7 +1,7 @@
 import Gem from './Gem';
 
 export default class GemCollection {
-  constructor(gl, shader, count) {
+  constructor(gl, shader, x, y, count, scale) {
     const vertices = new Float32Array([
       -20.0, -7.0,
       -13.0, -18.0,
@@ -58,7 +58,7 @@ export default class GemCollection {
     this.gems = [];
 
     for (let i = 0; i < count; i++) {
-      this.gems.push(new Gem(30.0 + i * 50.0, 80.0, 1.0));
+      this.gems.push(new Gem(x + i * 50.0, y, scale));
     }
   }
 
@@ -71,11 +71,17 @@ export default class GemCollection {
     gl.uniformMatrix4fv(shader.view, false, this.view);
     gl.uniform4f(shader.color, 1.0, 0.0, 1.0, 1.0);
 
-    const lastFlashing = player.gemTimer <= 0 || player.gemVisible;
+    if (player) {
+      const lastFlashing = player.gemTimer <= 0 || player.gemVisible;
 
-    for (let i = 0; i < this.gems.length; i++) {
-      this.gems[i].draw(gl, shader, player.gems > i + 1 ||
-        (lastFlashing && i === player.gems - 1));
+      for (let i = 0; i < this.gems.length; i++) {
+        this.gems[i].draw(gl, shader, player.gems > i + 1 ||
+          (lastFlashing && i === player.gems - 1));
+      }
+    } else {
+      for (const gem of this.gems) {
+        gem.draw(gl, shader, false);
+      }
     }
   }
 }

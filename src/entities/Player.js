@@ -1,4 +1,5 @@
 import Sword from './weapons/Sword';
+import VictoryScreen from '../screens/VictoryScreen';
 
 const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 11;
@@ -59,6 +60,8 @@ export default class Player {
     this.newHeartTimer = 0;
     this.newHeartFlashTimer = 0;
     this.newHeartVisible = true;
+
+    this.exitTextVisible = false;
   }
 
   validPosition(map, x, y) {
@@ -150,6 +153,8 @@ export default class Player {
       }
     }
 
+    this.exitTextVisible = false;
+
     if (game.input.wasJustPressed(game.input.ACTION)) {
       this.sword.swing();
     }
@@ -193,7 +198,19 @@ export default class Player {
       1.0, 0.0, 0.0, 50);
   }
 
-  draw(gl, shader) {
+  touchExit(game) {
+    if (this.gems < 5) {
+      this.exitTextVisible = true;
+    } else {
+      game.activeScreen = new VictoryScreen(game.gl, game.basicShader);
+    }
+  }
+
+  draw(gl, textContext, shader) {
+    if (this.exitTextVisible) {
+      textContext.fillText('COLLECT THE GEMS FIRST', 640, 360);
+    }
+
     if (!this.visible) {
       return;
     }
