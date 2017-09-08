@@ -96,7 +96,7 @@ export default class Game {
       (this.startingRoom.roomY + this.startingRoom.roomH / 2) * 10);
 
     this.heartCollection = new HeartCollection(this.gl, this.basicShader,
-      this.player.lives);
+      30.0, 20.0, this.player.lives, 1.0);
 
     this.gemCollection = new GemCollection(this.gl, this.basicShader,
       30.0, 80.0, NUM_GEMS, 1.0);

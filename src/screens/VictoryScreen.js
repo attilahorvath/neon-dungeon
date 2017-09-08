@@ -5,10 +5,14 @@ export default class VictoryScreen {
     this.gemCollection = new GemCollection(gl, shader, 640.0, 330.0, 1, 12.0);
 
     this.particleTimer = 100 + Math.random() * 1000;
+
+    this.actionTimer = 2000;
   }
 
   update(deltaTime, game) {
-    if (game.input.wasJustReleased(game.input.ACTION)) {
+    this.actionTimer -= deltaTime;
+
+    if (game.input.wasJustReleased(game.input.ACTION) && this.actionTimer < 0) {
       game.reset();
       game.activeScreen = null;
 

@@ -1,5 +1,6 @@
 import Sword from './weapons/Sword';
 import VictoryScreen from '../screens/VictoryScreen';
+import GameOverScreen from '../screens/GameOverScreen';
 
 const PLAYER_RADIUS = 5;
 const PLAYER_SEGMENTS = 11;
@@ -178,6 +179,10 @@ export default class Player {
 
     game.particleSystem.emitRandom(game.gl, this.x, this.y, 0.01, 0.2,
       1.0, 0.0, 0.0, 50);
+
+    if (this.lives === 0) {
+      game.activeScreen = new GameOverScreen(game.gl, game.basicShader);
+    }
   }
 
   collectGem(game, gem) {

@@ -4,7 +4,7 @@ const HEART_SEGMENTS = 101;
 const HEART_RADIUS = 10;
 
 export default class HeartCollection {
-  constructor(gl, shader, count) {
+  constructor(gl, shader, x, y, count, scale) {
     this.HEART_SEGMENTS = HEART_SEGMENTS;
 
     const vertices = new Float32Array(HEART_SEGMENTS * shader.vertexSize);
@@ -42,18 +42,21 @@ export default class HeartCollection {
     ]);
 
     this.hearts = [];
-    this.heartX = 30.0;
+
+    this.heartX = x;
+    this.heartY = y;
+    this.scale = scale;
 
     for (let i = 0; i < count; i++) {
-      this.hearts.push(new Heart(this, this.heartX, 20.0, 1.0));
-      this.heartX += 50.0;
+      this.hearts.push(new Heart(this, this.heartX, this.heartY, scale));
+      this.heartX += 50.0 * this.scale;
     }
   }
 
   update(player) {
     if (player.lives > this.hearts.length) {
-      this.hearts.push(new Heart(this, this.heartX, 20.0, 1.0));
-      this.heartX += 50.0;
+      this.hearts.push(new Heart(this, this.heartX, this.heartY, 1.0));
+      this.heartX += 50.0 * this.scale;
     }
   }
 
@@ -65,13 +68,19 @@ export default class HeartCollection {
     gl.uniformMatrix4fv(shader.view, false, this.view);
     gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
 
-    const lastFlashing = player.invincibilityTimer > 0 && player.visible;
-    const newFlashing = player.newHeartTimer <= 0 || player.newHeartVisible;
+    if (player) {
+      const lastFlashing = player.invincibilityTimer > 0 && player.visible;
+      const newFlashing = player.newHeartTimer <= 0 || player.newHeartVisible;
 
-    for (let i = 0; i < this.hearts.length; i++) {
-      this.hearts[i].draw(gl, shader, player.lives > i + 1 ||
-        (newFlashing && i === player.lives - 1) ||
-        (lastFlashing && i === player.lives));
+      for (let i = 0; i < this.hearts.length; i++) {
+        this.hearts[i].draw(gl, shader, player.lives > i + 1 ||
+          (newFlashing && i === player.lives - 1) ||
+          (lastFlashing && i === player.lives));
+      }
+    } else {
+      for (const heart of this.hearts) {
+        heart.draw(gl, shader, false);
+      }
     }
   }
 }

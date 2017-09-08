@@ -631,10 +631,14 @@ class VictoryScreen {
     this.gemCollection = new GemCollection(gl, shader, 640.0, 330.0, 1, 12.0);
 
     this.particleTimer = 100 + Math.random() * 1000;
+
+    this.actionTimer = 2000;
   }
 
   update(deltaTime, game) {
-    if (game.input.wasJustReleased(game.input.ACTION)) {
+    this.actionTimer -= deltaTime;
+
+    if (game.input.wasJustReleased(game.input.ACTION) && this.actionTimer < 0) {
       game.reset();
       game.activeScreen = null;
 
@@ -660,6 +664,183 @@ class VictoryScreen {
 
     textContext.fillText('VICTORY!', 640, 50);
     textContext.fillText('THANKS FOR PLAYING!', 640, 700);
+  }
+}
+
+class Heart {
+  constructor(heartCollection, x, y, scale) {
+    this.x = x;
+    this.y = y;
+    this.heartCollection = heartCollection;
+
+    this.model = new Float32Array([
+      scale, 0.0, 0.0, 0.0,
+      0.0, scale, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      x, y, 0.0, 1.0
+    ]);
+
+    this.collected = false;
+  }
+
+  update(game) {
+    if (this.collected) {
+      return;
+    }
+
+    const distX = game.player.x - this.x;
+    const distY = game.player.y - this.y;
+
+    const dist = Math.sqrt(distX * distX + distY * distY);
+
+    if (dist <= 20.0) {
+      game.player.collectHeart(game, this);
+      this.collected = true;
+    }
+  }
+
+  draw(gl, shader, filled) {
+    if (this.collected) {
+      return;
+    }
+
+    gl.uniformMatrix4fv(shader.model, false, this.model);
+
+    if (filled) {
+      gl.drawArrays(gl.TRIANGLE_FAN, 0, this.heartCollection.HEART_SEGMENTS);
+    } else {
+      gl.drawArrays(gl.LINE_STRIP, 1, this.heartCollection.HEART_SEGMENTS - 1);
+    }
+  }
+}
+
+const HEART_SEGMENTS = 101;
+const HEART_RADIUS = 10;
+
+class HeartCollection {
+  constructor(gl, shader, x, y, count, scale) {
+    this.HEART_SEGMENTS = HEART_SEGMENTS;
+
+    const vertices = new Float32Array(HEART_SEGMENTS * shader.vertexSize);
+
+    let vertexIndex = 0;
+
+    vertices[vertexIndex++] = 0.0;
+    vertices[vertexIndex++] = 0.0;
+
+    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
+      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
+
+      vertices[vertexIndex++] = vertexX * HEART_RADIUS;
+      vertices[vertexIndex++] = -Math.sqrt(1.0 - (Math.abs(vertexX) - 1.0) *
+        (Math.abs(vertexX) - 1.0)) * HEART_RADIUS;
+    }
+
+    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
+      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
+
+      vertices[vertexIndex++] = -vertexX * HEART_RADIUS;
+      vertices[vertexIndex++] = 3.0 * Math.sqrt(1.0 -
+        (Math.sqrt(Math.abs(vertexX))) / Math.SQRT2) * HEART_RADIUS;
+    }
+
+    this.vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.hearts = [];
+
+    this.heartX = x;
+    this.heartY = y;
+    this.scale = scale;
+
+    for (let i = 0; i < count; i++) {
+      this.hearts.push(new Heart(this, this.heartX, this.heartY, scale));
+      this.heartX += 50.0 * this.scale;
+    }
+  }
+
+  update(player) {
+    if (player.lives > this.hearts.length) {
+      this.hearts.push(new Heart(this, this.heartX, this.heartY, 1.0));
+      this.heartX += 50.0 * this.scale;
+    }
+  }
+
+  draw(gl, shader, player) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
+
+    shader.use(gl);
+
+    gl.uniformMatrix4fv(shader.view, false, this.view);
+    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
+
+    if (player) {
+      const lastFlashing = player.invincibilityTimer > 0 && player.visible;
+      const newFlashing = player.newHeartTimer <= 0 || player.newHeartVisible;
+
+      for (let i = 0; i < this.hearts.length; i++) {
+        this.hearts[i].draw(gl, shader, player.lives > i + 1 ||
+          (newFlashing && i === player.lives - 1) ||
+          (lastFlashing && i === player.lives));
+      }
+    } else {
+      for (const heart of this.hearts) {
+        heart.draw(gl, shader, false);
+      }
+    }
+  }
+}
+
+class GameOverScreen {
+  constructor(gl, shader) {
+    this.heartCollection = new HeartCollection(gl, shader, 300.0, 330.0,
+      3, 7.0);
+
+    this.textTimer = 1800;
+    this.showText = false;
+
+    this.actionTimer = 2000;
+  }
+
+  update(deltaTime, game) {
+    this.actionTimer -= deltaTime;
+
+    if (game.input.wasJustReleased(game.input.ACTION) && this.actionTimer < 0) {
+      game.reset();
+      game.activeScreen = null;
+
+      return;
+    }
+
+    this.textTimer -= deltaTime;
+
+    if (this.textTimer <= 0) {
+      this.textTimer = 800;
+      this.showText = !this.showText;
+    }
+  }
+
+  draw(gl, textContext, shader, projection, view) {
+    shader.use(gl);
+
+    gl.uniformMatrix4fv(shader.projection, false, projection);
+
+    this.heartCollection.draw(gl, shader, null);
+
+    textContext.fillText('GAME', 640, 50);
+    textContext.fillText('OVER', 640, 100);
+
+    if (this.showText) {
+      textContext.fillText('PRESS SPACE TO TRY AGAIN', 640, 700);
+    }
   }
 }
 
@@ -840,6 +1021,10 @@ class Player {
 
     game.particleSystem.emitRandom(game.gl, this.x, this.y, 0.01, 0.2,
       1.0, 0.0, 0.0, 50);
+
+    if (this.lives === 0) {
+      game.activeScreen = new GameOverScreen(game.gl, game.basicShader);
+    }
   }
 
   collectGem(game, gem) {
@@ -999,129 +1184,6 @@ class LightCone {
     gl.uniform3f(this.shader.color, 0.7, 0.7, 0.7);
 
     gl.drawArrays(gl.TRIANGLE_FAN, 0, LIGHT_CONE_SEGMENTS);
-  }
-}
-
-class Heart {
-  constructor(heartCollection, x, y, scale) {
-    this.x = x;
-    this.y = y;
-    this.heartCollection = heartCollection;
-
-    this.model = new Float32Array([
-      scale, 0.0, 0.0, 0.0,
-      0.0, scale, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      x, y, 0.0, 1.0
-    ]);
-
-    this.collected = false;
-  }
-
-  update(game) {
-    if (this.collected) {
-      return;
-    }
-
-    const distX = game.player.x - this.x;
-    const distY = game.player.y - this.y;
-
-    const dist = Math.sqrt(distX * distX + distY * distY);
-
-    if (dist <= 20.0) {
-      game.player.collectHeart(game, this);
-      this.collected = true;
-    }
-  }
-
-  draw(gl, shader, filled) {
-    if (this.collected) {
-      return;
-    }
-
-    gl.uniformMatrix4fv(shader.model, false, this.model);
-
-    if (filled) {
-      gl.drawArrays(gl.TRIANGLE_FAN, 0, this.heartCollection.HEART_SEGMENTS);
-    } else {
-      gl.drawArrays(gl.LINE_STRIP, 1, this.heartCollection.HEART_SEGMENTS - 1);
-    }
-  }
-}
-
-const HEART_SEGMENTS = 101;
-const HEART_RADIUS = 10;
-
-class HeartCollection {
-  constructor(gl, shader, count) {
-    this.HEART_SEGMENTS = HEART_SEGMENTS;
-
-    const vertices = new Float32Array(HEART_SEGMENTS * shader.vertexSize);
-
-    let vertexIndex = 0;
-
-    vertices[vertexIndex++] = 0.0;
-    vertices[vertexIndex++] = 0.0;
-
-    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
-      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
-
-      vertices[vertexIndex++] = vertexX * HEART_RADIUS;
-      vertices[vertexIndex++] = -Math.sqrt(1.0 - (Math.abs(vertexX) - 1.0) *
-        (Math.abs(vertexX) - 1.0)) * HEART_RADIUS;
-    }
-
-    for (let i = 0; i < (HEART_SEGMENTS - 1) / 2; i++) {
-      const vertexX = -2.0 + i * (4.0 / ((HEART_SEGMENTS - 1) / 2 - 1));
-
-      vertices[vertexIndex++] = -vertexX * HEART_RADIUS;
-      vertices[vertexIndex++] = 3.0 * Math.sqrt(1.0 -
-        (Math.sqrt(Math.abs(vertexX))) / Math.SQRT2) * HEART_RADIUS;
-    }
-
-    this.vertexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-
-    this.view = new Float32Array([
-      1.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0,
-      0.0, 0.0, 0.0, 1.0
-    ]);
-
-    this.hearts = [];
-    this.heartX = 30.0;
-
-    for (let i = 0; i < count; i++) {
-      this.hearts.push(new Heart(this, this.heartX, 20.0, 1.0));
-      this.heartX += 50.0;
-    }
-  }
-
-  update(player) {
-    if (player.lives > this.hearts.length) {
-      this.hearts.push(new Heart(this, this.heartX, 20.0, 1.0));
-      this.heartX += 50.0;
-    }
-  }
-
-  draw(gl, shader, player) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
-
-    shader.use(gl);
-
-    gl.uniformMatrix4fv(shader.view, false, this.view);
-    gl.uniform4f(shader.color, 1.0, 0.0, 0.0, 1.0);
-
-    const lastFlashing = player.invincibilityTimer > 0 && player.visible;
-    const newFlashing = player.newHeartTimer <= 0 || player.newHeartVisible;
-
-    for (let i = 0; i < this.hearts.length; i++) {
-      this.hearts[i].draw(gl, shader, player.lives > i + 1 ||
-        (newFlashing && i === player.lives - 1) ||
-        (lastFlashing && i === player.lives));
-    }
   }
 }
 
@@ -2188,7 +2250,7 @@ class Game {
       (this.startingRoom.roomY + this.startingRoom.roomH / 2) * 10);
 
     this.heartCollection = new HeartCollection(this.gl, this.basicShader,
-      this.player.lives);
+      30.0, 20.0, this.player.lives, 1.0);
 
     this.gemCollection = new GemCollection(this.gl, this.basicShader,
       30.0, 80.0, NUM_GEMS, 1.0);
