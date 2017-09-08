@@ -1,4 +1,4 @@
-import BlurShader from './shaders/BlurShader';
+import WidenShader from './shaders/WidenShader';
 
 export default class PostProcessor {
   constructor(gl, width, height) {
@@ -39,7 +39,7 @@ export default class PostProcessor {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
       gl.TEXTURE_2D, this.texture, 0);
 
-    this.shader = new BlurShader(gl);
+    this.shader = new WidenShader(gl);
 
     gl.bindTexture(gl.TEXTURE_2D, null);
   }

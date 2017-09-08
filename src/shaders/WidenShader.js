@@ -1,8 +1,8 @@
-import vertexShaderSource from '../../shaders/blur.vert';
-import fragmentShaderSource from '../../shaders/blur.frag';
+import vertexShaderSource from '../../shaders/widen.vert';
+import fragmentShaderSource from '../../shaders/widen.frag';
 import Shader from './Shader';
 
-export default class BlueShader extends Shader {
+export default class WidenShader extends Shader {
   constructor(gl) {
     const uniforms = ['sampler', 'texSize'];
     const attributes = ['vertexPosition', 'vertexTexCoord'];

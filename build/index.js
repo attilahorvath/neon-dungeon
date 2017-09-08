@@ -1659,7 +1659,7 @@ var vertexShaderSource$4 = "attribute vec2 vertexPosition;attribute vec2 vertexT
 
 var fragmentShaderSource$4 = "precision highp float;uniform sampler2D sampler;uniform vec2 texSize;varying highp vec2 texCoord;void main(){vec2 texStep=1.0/texSize;vec4 color=vec4(0.0);color+=texture2D(sampler,vec2(texCoord.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x-texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x+texStep.x,texCoord.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y-texStep.y));color+=texture2D(sampler,vec2(texCoord.x,texCoord.y+texStep.y));gl_FragColor=color;}";
 
-class BlueShader extends Shader {
+class WidenShader extends Shader {
   constructor(gl) {
     const uniforms = ['sampler', 'texSize'];
     const attributes = ['vertexPosition', 'vertexTexCoord'];
@@ -1715,7 +1715,7 @@ class PostProcessor {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
       gl.TEXTURE_2D, this.texture, 0);
 
-    this.shader = new BlueShader(gl);
+    this.shader = new WidenShader(gl);
 
     gl.bindTexture(gl.TEXTURE_2D, null);
   }
