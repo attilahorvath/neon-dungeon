@@ -90,7 +90,7 @@ export default class Map {
     gl.uniformMatrix4fv(this.shader.view, false, view);
 
     if (wallsOnly) {
-      gl.uniform4f(this.shader.wallColor, 0.0, 0.0, 1.0, 1.0);
+      gl.uniform4f(this.shader.wallColor, 1.0, 1.0, 1.0, 1.0);
       gl.uniform4f(this.shader.roomColor, 0.0, 0.0, 0.0, 0.0);
     } else {
       gl.uniform4f(this.shader.wallColor, 0.0, 0.0, 0.0, 0.0);

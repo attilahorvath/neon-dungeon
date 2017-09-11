@@ -319,7 +319,7 @@ class Map {
     gl.uniformMatrix4fv(this.shader.view, false, view);
 
     if (wallsOnly) {
-      gl.uniform4f(this.shader.wallColor, 0.0, 0.0, 1.0, 1.0);
+      gl.uniform4f(this.shader.wallColor, 1.0, 1.0, 1.0, 1.0);
       gl.uniform4f(this.shader.roomColor, 0.0, 0.0, 0.0, 0.0);
     } else {
       gl.uniform4f(this.shader.wallColor, 0.0, 0.0, 0.0, 0.0);
@@ -1676,8 +1676,60 @@ class WidenShader extends Shader {
   }
 }
 
+var vertexShaderSource$5 = "attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+
+var fragmentShaderSource$5 = "precision highp float;uniform sampler2D sampler;uniform vec2 texSize;uniform vec2 direction;uniform float radius;varying highp vec2 texCoord;void main(){vec2 texStep=(1.0/texSize)*direction*radius;vec4 color=vec4(0.0);color+=texture2D(sampler,texCoord-4.0*texStep)*0.05;color+=texture2D(sampler,texCoord-3.0*texStep)*0.09;color+=texture2D(sampler,texCoord-2.0*texStep)*0.12;color+=texture2D(sampler,texCoord-1.0*texStep)*0.15;color+=texture2D(sampler,texCoord+0.0*texStep)*0.16;color+=texture2D(sampler,texCoord+1.0*texStep)*0.15;color+=texture2D(sampler,texCoord+2.0*texStep)*0.12;color+=texture2D(sampler,texCoord+3.0*texStep)*0.09;color+=texture2D(sampler,texCoord+4.0*texStep)*0.05;gl_FragColor=color;}";
+
+class BlurShader extends Shader {
+  constructor(gl) {
+    const uniforms = ['sampler', 'texSize', 'direction', 'radius'];
+    const attributes = ['vertexPosition', 'vertexTexCoord'];
+
+    super(gl, vertexShaderSource$5, fragmentShaderSource$5, uniforms, attributes,
+      4);
+  }
+
+  use(gl) {
+    super.use(gl);
+
+    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 16, 0);
+    gl.vertexAttribPointer(this.vertexTexCoord, 2, gl.FLOAT, false, 16, 8);
+  }
+}
+
+var vertexShaderSource$6 = "uniform mediump mat4 projection;uniform mediump mat4 view;attribute vec2 vertexPosition;attribute vec2 vertexTexCoord;varying highp vec2 texCoord;void main(){gl_Position=projection*view*vec4(vertexPosition,0.0,1.0);texCoord=vertexTexCoord;}";
+
+var fragmentShaderSource$6 = "precision highp float;const float tolerance=0.1;uniform sampler2D sampler;varying highp vec2 texCoord;void main(){gl_FragColor=step(tolerance,texture2D(sampler,texCoord));}";
+
+class ThresholdShader extends Shader {
+  constructor(gl) {
+    const uniforms = ['projection', 'view', 'sampler'];
+    const attributes = ['vertexPosition', 'vertexTexCoord'];
+
+    super(gl, vertexShaderSource$6, fragmentShaderSource$6, uniforms, attributes,
+      4);
+  }
+
+  use(gl) {
+    super.use(gl);
+
+    gl.vertexAttribPointer(this.vertexPosition, 2, gl.FLOAT, false, 16, 0);
+    gl.vertexAttribPointer(this.vertexTexCoord, 2, gl.FLOAT, false, 16, 8);
+  }
+}
+
 class PostProcessor {
   constructor(gl, width, height) {
+    this.WIDEN = 0;
+    this.BLUR = 1;
+    this.TEXTURE = 2;
+    this.THRESHOLD = 3;
+
+    this.BUFFER_A = 0;
+    this.BUFFER_B = 1;
+    this.SMALL_BUFFER_A = 2;
+    this.SMALL_BUFFER_B = 3;
+
     this.width = width;
     this.height = height;
 
@@ -1701,43 +1753,155 @@ class PostProcessor {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
 
-    this.texture = gl.createTexture();
+    this.textureA = gl.createTexture();
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+    gl.bindTexture(gl.TEXTURE_2D, this.textureA);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0,
       gl.RGBA, gl.UNSIGNED_BYTE, null);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-    this.framebuffer = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+    this.framebufferA = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebufferA);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
-      gl.TEXTURE_2D, this.texture, 0);
+      gl.TEXTURE_2D, this.textureA, 0);
 
-    this.shader = new WidenShader(gl);
+    this.textureB = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.textureB);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width, this.height, 0,
+      gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    this.framebufferB = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebufferB);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D, this.textureB, 0);
+
+    this.smallTextureA = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.smallTextureA);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width / 4, this.height / 4, 0,
+      gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    this.smallFramebufferA = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.smallFramebufferA);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D, this.smallTextureA, 0);
+
+    this.smallTextureB = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.smallTextureB);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.width / 4, this.height / 4, 0,
+      gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    this.smallFramebufferB = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.smallFramebufferB);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D, this.smallTextureB, 0);
+
+    this.widenShader = new WidenShader(gl);
+    this.blurShader = new BlurShader(gl);
+    this.textureShader = new TextureShader(gl);
+    this.thresholdShader = new ThresholdShader(gl);
 
     gl.bindTexture(gl.TEXTURE_2D, null);
+
+    this.projection = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
+
+    this.view = new Float32Array([
+      1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0.0,
+      0.0, 0.0, 0.0, 1.0
+    ]);
   }
 
-  draw(gl) {
+  draw(gl, buffer, shader, verticalBlur, blurRadius) {
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
 
-    this.shader.use(gl);
+    switch (shader) {
+    case this.BLUR:
+      this.blurShader.use(gl);
 
-    gl.uniform1i(this.shader.sampler, 0);
-    gl.uniform2f(this.shader.texSize, this.width, this.height);
+      gl.uniform1i(this.blurShader.sampler, 0);
+      gl.uniform2f(this.blurShader.texSize, this.width, this.height);
 
-    gl.bindTexture(gl.TEXTURE_2D, this.texture);
+      if (verticalBlur) {
+        gl.uniform2f(this.blurShader.direction, 0.0, 1.0);
+      } else {
+        gl.uniform2f(this.blurShader.direction, 1.0, 0.0);
+      }
+
+      gl.uniform1f(this.blurShader.radius, blurRadius);
+
+      break;
+    case this.WIDEN:
+      this.widenShader.use(gl);
+
+      gl.uniform1i(this.widenShader.sampler, 0);
+      gl.uniform2f(this.widenShader.texSize, this.width, this.height);
+
+      break;
+    case this.TEXTURE:
+      this.textureShader.use(gl);
+
+      gl.uniformMatrix4fv(this.textureShader.projection, false,
+        this.projection);
+      gl.uniformMatrix4fv(this.textureShader.view, false, this.view);
+
+      gl.uniform1i(this.textureShader.sampler, 0);
+
+      break;
+    case this.THRESHOLD:
+      this.thresholdShader.use(gl);
+
+      gl.uniformMatrix4fv(this.thresholdShader.projection, false,
+        this.projection);
+      gl.uniformMatrix4fv(this.thresholdShader.view, false, this.view);
+
+      gl.uniform1i(this.thresholdShader.sampler, 0);
+
+      break;
+    }
+
+    switch (buffer) {
+    case this.BUFFER_A:
+      gl.bindTexture(gl.TEXTURE_2D, this.textureA);
+      break;
+    case this.BUFFER_B:
+      gl.bindTexture(gl.TEXTURE_2D, this.textureB);
+      break;
+    case this.SMALL_BUFFER_A:
+      gl.bindTexture(gl.TEXTURE_2D, this.smallTextureA);
+      break;
+    case this.SMALL_BUFFER_B:
+      gl.bindTexture(gl.TEXTURE_2D, this.smallTextureB);
+      break;
+    }
 
     gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
   }
 }
 
-var vertexShaderSource$5 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump float elapsedTime;attribute vec2 particlePosition;attribute vec2 particleVelocity;attribute float particleEmitted;attribute vec3 particleColor;varying mediump vec4 color;void main(){vec2 position=particlePosition+particleVelocity*(elapsedTime-particleEmitted);gl_Position=projection*view*vec4(position,0.0,1.0);color=vec4(particleColor,(1000.0-(elapsedTime-particleEmitted))/1000.0);gl_PointSize=3.0;}";
+var vertexShaderSource$7 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump float elapsedTime;attribute vec2 particlePosition;attribute vec2 particleVelocity;attribute float particleEmitted;attribute vec3 particleColor;varying mediump vec4 color;void main(){vec2 position=particlePosition+particleVelocity*(elapsedTime-particleEmitted);gl_Position=projection*view*vec4(position,0.0,1.0);color=vec4(particleColor,(1000.0-(elapsedTime-particleEmitted))/1000.0);gl_PointSize=3.0;}";
 
-var fragmentShaderSource$5 = "varying mediump vec4 color;void main(){gl_FragColor=color;}";
+var fragmentShaderSource$7 = "varying mediump vec4 color;void main(){gl_FragColor=color;}";
 
 class ParticleShader extends Shader {
   constructor(gl) {
@@ -1745,7 +1909,7 @@ class ParticleShader extends Shader {
     const attributes = ['particlePosition', 'particleVelocity',
       'particleEmitted', 'particleColor'];
 
-    super(gl, vertexShaderSource$5, fragmentShaderSource$5, uniforms, attributes,
+    super(gl, vertexShaderSource$7, fragmentShaderSource$7, uniforms, attributes,
       8);
   }
 
@@ -1852,16 +2016,16 @@ class ParticleSystem {
   }
 }
 
-var vertexShaderSource$6 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump mat4 model;attribute vec2 vertexPosition;attribute vec4 vertexColor;varying mediump vec4 color;void main(){gl_Position=projection*view*model*vec4(vertexPosition,0.0,1.0);color=vertexColor;}";
+var vertexShaderSource$8 = "uniform mediump mat4 projection;uniform mediump mat4 view;uniform mediump mat4 model;attribute vec2 vertexPosition;attribute vec4 vertexColor;varying mediump vec4 color;void main(){gl_Position=projection*view*model*vec4(vertexPosition,0.0,1.0);color=vertexColor;}";
 
-var fragmentShaderSource$6 = "uniform mediump float maxAlpha;varying mediump vec4 color;void main(){gl_FragColor=vec4(color.rgb,1.0)*(1.0-step(maxAlpha,color.a));}";
+var fragmentShaderSource$8 = "uniform mediump float maxAlpha;varying mediump vec4 color;void main(){gl_FragColor=vec4(color.rgb,1.0)*(1.0-step(maxAlpha,color.a));}";
 
 class TitleShader extends Shader {
   constructor(gl) {
     const uniforms = ['projection', 'view', 'model', 'maxAlpha'];
     const attributes = ['vertexPosition', 'vertexColor'];
 
-    super(gl, vertexShaderSource$6, fragmentShaderSource$6, uniforms, attributes,
+    super(gl, vertexShaderSource$8, fragmentShaderSource$8, uniforms, attributes,
       6);
   }
 
@@ -2353,7 +2517,7 @@ class Game {
       this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
 
       this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
-        this.postProcessor.framebuffer);
+        this.postProcessor.framebufferA);
       this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
       this.gl.clear(this.gl.COLOR_BUFFER_BIT);
       this.map.draw(this.gl, this.projection, this.view, true);
@@ -2371,7 +2535,7 @@ class Game {
       this.player.draw(this.gl, this.textContext, this.basicShader);
     } else {
       this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
-        this.postProcessor.framebuffer);
+        this.postProcessor.framebufferA);
       this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
       this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     }
@@ -2380,9 +2544,50 @@ class Game {
 
     this.particleSystem.draw(this.gl, this.projection, this.view);
 
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
-      this.guiPostProcessor.framebuffer);
     this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.framebufferB);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_A,
+      this.postProcessor.WIDEN, false, 0.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.framebufferA);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_B,
+      this.postProcessor.BLUR, true, 1.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.framebufferB);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_A,
+      this.postProcessor.BLUR, false, 1.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.smallFramebufferA);
+    this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_B,
+      this.postProcessor.THRESHOLD, false, 0.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.smallFramebufferB);
+    this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.SMALL_BUFFER_A,
+      this.postProcessor.BLUR, true, 5.0);
+
+    // this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+    //   this.postProcessor.smallFramebufferA);
+    // this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+    // this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    // this.postProcessor.draw(this.gl, this.postProcessor.SMALL_BUFFER_B,
+    //   this.postProcessor.BLUR, false, 1.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.guiPostProcessor.framebufferA);
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     if (this.activeScreen) {
@@ -2398,19 +2603,28 @@ class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     if (!this.activeScreen) {
-      this.map.draw(this.gl, this.projection, this.view, false);
-      this.lightCone.draw(this.gl, this.projection, this.view, false);
-      this.postProcessor.draw(this.gl);
+      // this.map.draw(this.gl, this.projection, this.view, false);
+      // this.lightCone.draw(this.gl, this.projection, this.view, false);
+      // this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+      // this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+      this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_B,
+        this.postProcessor.TEXTURE, false, 1.0);
 
-      this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
-      this.fogOfWar.draw(this.gl, this.projection, this.view);
+      // this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
+      // this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_B,
+      //   this.postProcessor.TEXTURE, false, 0.0);
+
+      // this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
+      // this.fogOfWar.draw(this.gl, this.projection, this.view);
     } else {
-      this.postProcessor.draw(this.gl);
+      this.postProcessor.draw(this.gl, this.postProcessor.SMALL_BUFFER_B,
+        this.postProcessor.TEXTURE, false, 0.0);
     }
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
-    this.guiPostProcessor.draw(this.gl);
+    this.guiPostProcessor.draw(this.gl, this.guiPostProcessor.BUFFER_A,
+      this.guiPostProcessor.WIDEN, false, 0.0);
 
     if (this.explanationTimer > 0 && !this.activeScreen) {
       this.textContext.fillText('COLLECT THE GEMS',

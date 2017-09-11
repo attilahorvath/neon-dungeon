@@ -199,7 +199,7 @@ export default class Game {
       this.gl.blendFunc(this.gl.ONE, this.gl.ZERO);
 
       this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
-        this.postProcessor.framebuffer);
+        this.postProcessor.framebufferA);
       this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
       this.gl.clear(this.gl.COLOR_BUFFER_BIT);
       this.map.draw(this.gl, this.projection, this.view, true);
@@ -217,7 +217,7 @@ export default class Game {
       this.player.draw(this.gl, this.textContext, this.basicShader);
     } else {
       this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
-        this.postProcessor.framebuffer);
+        this.postProcessor.framebufferA);
       this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
       this.gl.clear(this.gl.COLOR_BUFFER_BIT);
     }
@@ -226,9 +226,50 @@ export default class Game {
 
     this.particleSystem.draw(this.gl, this.projection, this.view);
 
-    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
-      this.guiPostProcessor.framebuffer);
     this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.framebufferB);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_A,
+      this.postProcessor.WIDEN, false, 0.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.framebufferA);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_B,
+      this.postProcessor.BLUR, true, 1.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.framebufferB);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_A,
+      this.postProcessor.BLUR, false, 1.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.smallFramebufferA);
+    this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_B,
+      this.postProcessor.THRESHOLD, false, 0.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.postProcessor.smallFramebufferB);
+    this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+    this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    this.postProcessor.draw(this.gl, this.postProcessor.SMALL_BUFFER_A,
+      this.postProcessor.BLUR, true, 5.0);
+
+    // this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+    //   this.postProcessor.smallFramebufferA);
+    // this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+    // this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+    // this.postProcessor.draw(this.gl, this.postProcessor.SMALL_BUFFER_B,
+    //   this.postProcessor.BLUR, false, 1.0);
+
+    this.gl.bindFramebuffer(this.gl.FRAMEBUFFER,
+      this.guiPostProcessor.framebufferA);
+    this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     if (this.activeScreen) {
@@ -244,19 +285,28 @@ export default class Game {
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
     if (!this.activeScreen) {
-      this.map.draw(this.gl, this.projection, this.view, false);
-      this.lightCone.draw(this.gl, this.projection, this.view, false);
-      this.postProcessor.draw(this.gl);
+      // this.map.draw(this.gl, this.projection, this.view, false);
+      // this.lightCone.draw(this.gl, this.projection, this.view, false);
+      // this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+      // this.gl.viewport(0, 0, this.canvas.width / 4, this.canvas.height / 4);
+      this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_B,
+        this.postProcessor.TEXTURE, false, 1.0);
 
-      this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
-      this.fogOfWar.draw(this.gl, this.projection, this.view);
+      // this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
+      // this.postProcessor.draw(this.gl, this.postProcessor.BUFFER_B,
+      //   this.postProcessor.TEXTURE, false, 0.0);
+
+      // this.gl.blendFunc(this.gl.ZERO, this.gl.SRC_ALPHA);
+      // this.fogOfWar.draw(this.gl, this.projection, this.view);
     } else {
-      this.postProcessor.draw(this.gl);
+      this.postProcessor.draw(this.gl, this.postProcessor.SMALL_BUFFER_B,
+        this.postProcessor.TEXTURE, false, 0.0);
     }
 
     this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
-    this.guiPostProcessor.draw(this.gl);
+    this.guiPostProcessor.draw(this.gl, this.guiPostProcessor.BUFFER_A,
+      this.guiPostProcessor.WIDEN, false, 0.0);
 
     if (this.explanationTimer > 0 && !this.activeScreen) {
       this.textContext.fillText('COLLECT THE GEMS',
