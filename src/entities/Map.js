@@ -94,7 +94,7 @@ export default class Map {
       gl.uniform4f(this.shader.roomColor, 0.0, 0.0, 0.0, 0.0);
     } else {
       gl.uniform4f(this.shader.wallColor, 0.0, 0.0, 0.0, 0.0);
-      gl.uniform4f(this.shader.roomColor, 0.15, 0.15, 0.15, 1.0);
+      gl.uniform4f(this.shader.roomColor, 0.07, 0.07, 0.07, 1.0);
     }
 
     gl.uniform1i(this.shader.sampler, 0);

@@ -3,8 +3,8 @@ import DungeonTitle from '../entities/texts/DungeonTitle';
 
 export default class TitleScreen {
   constructor(gl) {
-    this.neonTitle = new NeonTitle(gl, 200.0, 20.0);
-    this.dungeonTitle = new DungeonTitle(gl, 300.0, 400.0);
+    this.neonTitle = new NeonTitle(gl, 235.0, 20.0);
+    this.dungeonTitle = new DungeonTitle(gl, 305.0, 400.0);
 
     this.textTimer = 4800;
     this.showText = false;

@@ -1,5 +1,6 @@
 import eslint from 'rollup-plugin-eslint';
 import glsl from 'rollup-plugin-glsl';
+import uglify from 'rollup-plugin-uglify-es';
 
 export default {
   input: 'src/index.js',
@@ -13,6 +14,7 @@ export default {
     }),
     glsl({
       include: 'shaders/**/*'
-    })
+    }),
+    uglify()
   ]
 };
