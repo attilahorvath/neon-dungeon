@@ -1,8 +1,10 @@
-import TitleShader from '../../shaders/TitleShader';
+import vertexShaderSource from '../../../shaders/title.vert';
+import fragmentShaderSource from '../../../shaders/title.frag';
+import Shader from '../../Shader';
 
 export default class NeonTitle {
   constructor(gl, x, y) {
-    this.shader = new TitleShader(gl);
+    this.shader = new Shader(gl, vertexShaderSource, fragmentShaderSource);
 
     this.vertices = new Float32Array([
       0.0, 300.0, 0.0, 0.0, 1.0, 0.0 / 4.0,

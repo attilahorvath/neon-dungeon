@@ -1,10 +1,12 @@
-import ParticleShader from './shaders/ParticleShader';
+import vertexShaderSource from '../shaders/particle.vert';
+import fragmentShaderSource from '../shaders/particle.frag';
+import Shader from './Shader';
 
 const MAX_PARTICLES = 512;
 
 export default class ParticleSystem {
   constructor(gl) {
-    this.shader = new ParticleShader(gl);
+    this.shader = new Shader(gl, vertexShaderSource, fragmentShaderSource);
 
     this.particles = new Float32Array(MAX_PARTICLES * this.shader.vertexSize);
 

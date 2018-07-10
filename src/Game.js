@@ -1,5 +1,7 @@
+import vertexShaderSource from '../shaders/basic.vert';
+import fragmentShaderSource from '../shaders/basic.frag';
+import Shader from './Shader';
 import Input from './Input';
-import BasicShader from './shaders/BasicShader';
 import Map from './entities/Map';
 import Player from './entities/Player';
 import LightCone from './entities/LightCone';
@@ -67,7 +69,8 @@ export default class Game {
 
     this.input = new Input();
 
-    this.basicShader = new BasicShader(this.gl);
+    this.basicShader = new Shader(this.gl, vertexShaderSource,
+      fragmentShaderSource);
 
     this.reset();
 

@@ -1,4 +1,6 @@
-import WidenShader from './shaders/WidenShader';
+import vertexShaderSource from '../shaders/widen.vert';
+import fragmentShaderSource from '../shaders/widen.frag';
+import Shader from './Shader';
 
 export default class PostProcessor {
   constructor(gl, width, height) {
@@ -39,7 +41,7 @@ export default class PostProcessor {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
       gl.TEXTURE_2D, this.texture, 0);
 
-    this.shader = new WidenShader(gl);
+    this.shader = new Shader(gl, vertexShaderSource, fragmentShaderSource);
 
     gl.bindTexture(gl.TEXTURE_2D, null);
   }

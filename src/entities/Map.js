@@ -1,5 +1,7 @@
+import vertexShaderSource from '../../shaders/map.vert';
+import fragmentShaderSource from '../../shaders/map.frag';
+import Shader from '../Shader';
 import MapNode from './MapNode';
-import MapShader from '../shaders/MapShader';
 
 const TILE_SIZE = 10;
 const CORRIDOR_SIZE = 5;
@@ -77,7 +79,7 @@ export default class Map {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
 
-    this.shader = new MapShader(gl);
+    this.shader = new Shader(gl, vertexShaderSource, fragmentShaderSource);
   }
 
   draw(gl, projection, view, wallsOnly) {

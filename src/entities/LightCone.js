@@ -1,11 +1,13 @@
-import AlphaShader from '../shaders/AlphaShader';
+import vertexShaderSource from '../../shaders/alpha.vert';
+import fragmentShaderSource from '../../shaders/alpha.frag';
+import Shader from '../Shader';
 
 const LIGHT_CONE_SEGMENTS = 256;
 const LIGHT_CONE_RADIUS = 196;
 
 export default class LightCone {
   constructor(gl) {
-    this.shader = new AlphaShader(gl);
+    this.shader = new Shader(gl, vertexShaderSource, fragmentShaderSource);
 
     this.baseVertices = new Float32Array(LIGHT_CONE_SEGMENTS *
       this.shader.vertexSize);

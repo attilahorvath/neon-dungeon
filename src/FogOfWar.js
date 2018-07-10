@@ -1,4 +1,6 @@
-import TextureShader from './shaders/TextureShader';
+import vertexShaderSource from '../shaders/texture.vert';
+import fragmentShaderSource from '../shaders/texture.frag';
+import Shader from './Shader';
 
 export default class FogOfWar {
   constructor(gl, width, height) {
@@ -55,7 +57,7 @@ export default class FogOfWar {
       0.0, 0.0, 0.0, 1.0
     ]);
 
-    this.shader = new TextureShader(gl);
+    this.shader = new Shader(gl, vertexShaderSource, fragmentShaderSource);
   }
 
   draw(gl, projection, view) {
