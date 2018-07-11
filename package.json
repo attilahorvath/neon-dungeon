@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack"
+    "build": "rollup -c"
   },
   "repository": {
     "type": "git",
@@ -18,11 +18,11 @@
   },
   "homepage": "https://github.com/attilahorvath/neon-dungeon#readme",
   "devDependencies": {
-    "@types/source-map": "0.5.2",
-    "awesome-typescript-loader": "^5.2.0",
-    "ts-shader-loader": "^1.0.5",
-    "typescript": "^2.9.2",
-    "webpack": "^4.15.1",
-    "webpack-cli": "^3.0.8"
+    "rollup": "^0.62.0",
+    "rollup-plugin-glsl": "^1.2.0",
+    "rollup-plugin-typescript2": "^0.15.1",
+    "rollup-plugin-uglify-es": "0.0.1",
+    "rollup-watch": "^4.3.1",
+    "typescript": "^2.9.2"
   }
 }

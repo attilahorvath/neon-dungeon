@@ -57,3 +57,5 @@ typings/
 # dotenv environment variables file
 .env
 
+# rollup-plugin-typescript2 cache
+.rpt2_cache
