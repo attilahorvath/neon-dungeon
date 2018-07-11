@@ -2,7 +2,7 @@ import Game from './Game';
 
 const game = new Game();
 
-const updateGame = timestamp => {
+const updateGame = (timestamp: number) => {
   requestAnimationFrame(updateGame);
 
   game.update(timestamp);
