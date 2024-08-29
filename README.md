@@ -5,13 +5,13 @@ Lost in a vibrant labyrinth illuminated just by its glowing neon walls, you must
 
 Do you have what it takes to escape the Neon Dungeon?
 
-[Launch latest build](https://rawgit.com/attilahorvath/neon-dungeon/master/index.html)
+[Launch latest build](https://attilahorvath.github.io/neon-dungeon)
 
 I have originally created the game for the [js13kGames](http://js13kgames.com) JavaScript coding competition in 2017 for the theme 'lost'.
 
 This repo will contain an improved, post-compo version but you will be able to try the original build submitted to the compo at this permalink:
 
-[Launch compo build](https://cdn.rawgit.com/attilahorvath/neon-dungeon/final/index.html)
+[Launch compo build](https://js13kgames.com/games/neon-dungeon/index.html)
 
 ## Controls
 - Move around: arrows / WASD / HJKL
