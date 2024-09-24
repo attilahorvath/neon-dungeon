@@ -20,7 +20,7 @@
   "homepage": "https://github.com/attilahorvath/neon-dungeon#readme",
   "devDependencies": {
     "@rollup/plugin-terser": "^0.4.4",
-    "rollup": "^4.21.0",
+    "rollup": "^4.22.4",
     "rollup-plugin-glsl": "^1.3.0"
   }
 }
